@@ -8,3 +8,6 @@ PyMySQL>=1.0.2, <2
 SQLAlchemy>=2.0.0, <3
 alembic>=1.9.2, <2
 marshmallow>=3.19.0, <4
+flask_smorest
+passlib
+flask_jwt_extended
