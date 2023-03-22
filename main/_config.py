@@ -2,6 +2,10 @@ import os.path
 from importlib import import_module
 from typing import TYPE_CHECKING
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 if TYPE_CHECKING:
     from config.base import BaseConfig
 

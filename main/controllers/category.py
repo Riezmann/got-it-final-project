@@ -1,13 +1,18 @@
+from flask import request
 from flask.views import MethodView
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_smorest import Blueprint
 from sqlalchemy.exc import SQLAlchemyError
 
 from main import db
-from main.commons.exceptions import BadRequest, InternalServerError
-from main.models import CategoryModel
-from main.schemas.base import PaginationSchema
-from main.schemas.category import CategorySchema
+from main.commons.exceptions import (
+    BadRequest,
+    InternalServerError,
+    Unauthorized,
+    ValidationError,
+)
+from main.models.category import CategoryModel
+from main.schemas.category import CategorySchema, PagingCategorySchema
 
 blp = Blueprint("Categories", __name__, description="Operations on categories")
 
@@ -32,13 +37,56 @@ class CategoryCreate(MethodView):
         return {"message": "Category created successfully"}, 201
 
     @jwt_required()
-    @blp.arguments(PaginationSchema)
-    @blp.response(200, CategorySchema(many=True))
-    def get(self, page_data):
+    @blp.response(200, PagingCategorySchema)
+    def get(self):
         user_id = get_jwt_identity()
-        categories = CategoryModel.query.filter(
-            CategoryModel.user_id == user_id
-        ).paginate(
-            page=page_data["page"], per_page=page_data["per_page"], error_out=False
+        args = request.args
+
+        page = args.get("page")
+        items_per_page = args.get("items-per-page")
+
+        if not page or not items_per_page:
+            page = 1
+            items_per_page = 20
+
+        try:
+            page = int(page)
+            items_per_page = int(items_per_page)
+        except ValueError:
+            return ValidationError(
+                error_message="Query params are not integers",
+                error_data={
+                    "page": "Page must be an integer",
+                    "items_per_page": "Items per page must be an integer",
+                },
+            ).to_response()
+
+        categories = CategoryModel.query.paginate(
+            page=page, per_page=items_per_page, error_out=False
         )
-        return categories.items
+        for category in categories:
+            if category.user_id == user_id:
+                category.is_owner = True
+            else:
+                category.is_owner = False
+        page_response = PagingCategorySchema()
+        page_response.page = page
+        page_response.items_per_page = items_per_page
+        page_response.items = categories
+        page_response.total_items = categories.total
+        return page_response
+
+
+@blp.route("/categories/<int:category_id>")
+class CategoryDelete(MethodView):
+    @jwt_required()
+    def delete(self, category_id):
+        user_id = get_jwt_identity()
+        category = CategoryModel.query.get(category_id)
+        if not category:
+            return {"message": "Category deleted successfully"}, 200
+        if user_id != category.user_id:
+            return Unauthorized().to_response()
+        db.session.delete(category)
+        db.session.commit()
+        return {"message": "Category deleted successfully"}, 200

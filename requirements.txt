@@ -11,3 +11,4 @@ marshmallow>=3.19.0, <4
 flask_smorest
 passlib
 flask_jwt_extended
+python-dotenv

@@ -3,15 +3,17 @@ from marshmallow import Schema, fields, validate
 
 class UserSchema(Schema):
     id = fields.Integer(dump_only=True)
-    email = fields.Email(
+    email = fields.Email(required=True, validate=validate.Email())
+
+    password = fields.String(
         required=True,
         validate=[
-            validate.Length(min=6, error="Password must be at least 8 characters long"),
+            validate.Length(min=6, error="Password must be at least 6 characters long"),
             validate.Regexp(
-                regex=r"^[a-zA-Z0-9!@#$%^&*()_+{}\[\]:;\"\'<>,.?/\\|-]+$",
+                regex=r"^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]",
                 error="Password must contain only letters, numbers, "
                 "and special characters",
             ),
         ],
+        load_only=True,
     )
-    password = fields.String(required=True, load_only=True)
