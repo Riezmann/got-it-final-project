@@ -4,13 +4,9 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy.exc import SQLAlchemyError
 
 from main import db
-from main.commons.exceptions import (
-    BadRequest,
-    Forbidden,
-    InternalServerError,
-    ValidationError,
-)
-from main.engines.validator import validate
+from main.commons.exceptions import BadRequest, Forbidden, InternalServerError
+from main.libs.int_parser import parse_int
+from main.libs.validator import validate
 from main.models.category import CategoryModel
 from main.schemas.category import CategorySchema
 
@@ -43,17 +39,7 @@ class CategoriesOperations(MethodView):
         page = args.get("page") or 1
         items_per_page = args.get("items-per-page") or 20
 
-        try:
-            page = int(page)
-            items_per_page = int(items_per_page)
-        except ValueError:
-            return ValidationError(
-                error_message="Query params are not integers",
-                error_data={
-                    "page": "Page must be an integer",
-                    "items_per_page": "Items per page must be an integer",
-                },
-            ).to_response()
+        page, items_per_page = parse_int(page, items_per_page)
 
         categories = CategoryModel.query.paginate(
             page=page, per_page=items_per_page, error_out=False

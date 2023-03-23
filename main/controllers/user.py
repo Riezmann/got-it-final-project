@@ -8,10 +8,10 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from main import db
 from main.commons.exceptions import BadRequest, InternalServerError, Unauthorized
+from main.libs.salt_generator import generate_salt
+from main.libs.validator import validate
 from main.schemas.user import UserSchema
 
-from ..engines.salt_generator import generate_salt
-from ..engines.validator import validate
 from ..models.user import UserModel
 
 blp = Blueprint("Users", __name__, url_prefix="/")

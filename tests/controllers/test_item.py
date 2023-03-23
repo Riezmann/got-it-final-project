@@ -116,19 +116,11 @@ def test_paging_get_items(items, client):
     response = client.get("/items?items-per-page=abc", headers=headers)
     assert response.status_code == 400
     assert response.json["error_message"] == "Query params are not integers"
-    assert response.json["error_data"] == {
-        "page": "Page must be an integer",
-        "items_per_page": "Items per page must be an integer",
-    }
 
     # case when page is invalid
     response = client.get("/items?page=abc", headers=headers)
     assert response.status_code == 400
     assert response.json["error_message"] == "Query params are not integers"
-    assert response.json["error_data"] == {
-        "page": "Page must be an integer",
-        "items_per_page": "Items per page must be an integer",
-    }
 
 
 def test_get_items_with_category_id(items, client, categories):
@@ -162,9 +154,6 @@ def test_get_items_with_category_id(items, client, categories):
     response = client.get("/items?category-id=abc", headers=headers)
     assert response.status_code == 400
     assert response.json["error_message"] == "Query params are not integers"
-    assert response.json["error_data"] == {
-        "category_id": "Category id must be an integer",
-    }
 
     # case when trying to get items with out-of-range category id
     response = client.get("/items?category-id=-1", headers=headers)

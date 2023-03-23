@@ -9,7 +9,7 @@ from passlib.hash import pbkdf2_sha256 as sha256
 
 from main import app as _app
 from main import db
-from main.engines.salt_generator import generate_salt
+from main.libs.salt_generator import generate_salt
 from main.models.category import CategoryModel
 from main.models.item import ItemModel
 from main.models.user import UserModel

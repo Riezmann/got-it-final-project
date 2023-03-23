@@ -1,6 +1,6 @@
 from marshmallow import ValidationError
 
-from ..commons import exceptions
+from main.commons import exceptions
 
 
 def validate(request, schema):

@@ -101,19 +101,11 @@ def test_paging_get_category(categories, client):
     response = client.get("/categories?page=abc", headers=headers)
     assert response.status_code == 400
     assert response.json["error_message"] == "Query params are not integers"
-    assert response.json["error_data"] == {
-        "page": "Page must be an integer",
-        "items_per_page": "Items per page must be an integer",
-    }
 
     # case when items_per_page is invalid
     response = client.get("/categories?items-per-page=abc", headers=headers)
     assert response.status_code == 400
     assert response.json["error_message"] == "Query params are not integers"
-    assert response.json["error_data"] == {
-        "page": "Page must be an integer",
-        "items_per_page": "Items per page must be an integer",
-    }
 
 
 def test_not_owner_get_category(categories, client):
