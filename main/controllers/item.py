@@ -1,7 +1,6 @@
-from flask import request
+from flask import Blueprint, request
 from flask.views import MethodView
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from flask_smorest import Blueprint
 from sqlalchemy.exc import SQLAlchemyError
 
 from main import db
@@ -12,19 +11,18 @@ from main.commons.exceptions import (
     Unauthorized,
     ValidationError,
 )
+from main.engines.validator import validate
 from main.models.category import CategoryModel
 from main.models.item import ItemModel
-from main.schemas.item import ItemSchema, PagingItemSchema
+from main.schemas.item import ItemSchema
 
-blp = Blueprint("Items", __name__, description="Operations on items")
+blp = Blueprint("Items", __name__)
 
 
-@blp.route("/items")
-class ItemsOperation(MethodView):
+class ItemsOperations(MethodView):
     @jwt_required()
-    @blp.response(200, ItemSchema)
-    @blp.arguments(ItemSchema)
-    def post(self, item_data):
+    def post(self):
+        item_data = validate(request, ItemSchema)
         category = CategoryModel.query.filter(
             CategoryModel.id == item_data["category_id"]
         ).first()
@@ -44,14 +42,12 @@ class ItemsOperation(MethodView):
         try:
             db.session.add(item)
             db.session.commit()
-            return item, 201
+            return ItemSchema().dump(item), 200
         except SQLAlchemyError:
             return InternalServerError().to_response()
 
     @jwt_required()
-    @blp.response(200, PagingItemSchema)
     def get(self):
-
         user_id = get_jwt_identity()
         args = request.args
 
@@ -74,70 +70,54 @@ class ItemsOperation(MethodView):
                 },
             ).to_response()
 
-        page_response = PagingItemSchema()
-        page_response.page = page
-        page_response.items_per_page = items_per_page
-
         if category_id:
-            category = CategoryModel.query.filter(
-                CategoryModel.id == category_id
-            ).first()
+            category = CategoryModel.query.get(category_id)
             if not category:
                 return BadRequest(error_message="Category does not exist").to_response()
             items = ItemModel.query.filter(
                 ItemModel.category_id == category_id
             ).paginate(page=page, per_page=items_per_page, error_out=False)
-            page_response.items = items
-            page_response.total_items = items.total
-            for item in items:
-                if item.user_id == user_id:
-                    item.is_owner = True
-                else:
-                    item.is_owner = False
         else:
             items = ItemModel.query.paginate(
                 page=page, per_page=items_per_page, error_out=False
             )
-            page_response.items = items
-            page_response.total_items = items.total
-            for item in items:
-                if item.user_id == user_id:
-                    item.is_owner = True
-                else:
-                    item.is_owner = False
-        return page_response
+        for item in items:
+            item.is_owner = item.user_id == user_id
+
+        items = ItemSchema(many=True).dump(items)
+        return {
+            "page": page,
+            "items_per_page": items_per_page,
+            "items": items,
+            "total_items": len(items),
+        }
 
 
-@blp.route("/items/<int:item_id>")
-class ItemOperation(MethodView):
+class ItemOperations(MethodView):
     @jwt_required()
-    @blp.response(200, ItemSchema)
     def get(self, item_id):
         item = ItemModel.query.get(item_id)
         if not item:
-            return NotFound(error_message="Hello").to_response()
-        return item
+            return NotFound(error_message="Item not found").to_response()
+        return ItemSchema().dump(item), 200
 
     @jwt_required()
-    @blp.arguments(ItemSchema)
-    @blp.response(200, ItemSchema)
-    def put(self, item_data, item_id):
+    def put(self, item_id):
+        item_data = validate(request, ItemSchema)
         user_id = get_jwt_identity()
         item = ItemModel.query.get(item_id)
-        if not item:
+        if item:
+            if item.user_id != user_id:
+                return Unauthorized().to_response()
             item.name = item_data["name"]
             item.description = item_data["description"]
             item.category_id = item_data["category_id"]
             item.user_id = user_id
-        if item.user_id != user_id:
-            return Unauthorized().to_response()
-        item = ItemModel(id=item_id, **item_data)
-        try:
+        else:
+            item = ItemModel(id=item_id, **item_data, user_id=user_id)
             db.session.add(item)
-            db.session.commit()
-        except SQLAlchemyError:
-            return InternalServerError().to_response()
-        return item
+        db.session.commit()
+        return ItemSchema().dump(item), 200
 
     @jwt_required()
     def delete(self, item_id):
@@ -150,3 +130,9 @@ class ItemOperation(MethodView):
         db.session.delete(item)
         db.session.commit()
         return {"message": "Item deleted successfully"}, 200
+
+
+itemsOperations_view = ItemsOperations.as_view("itemsOperations")
+itemOperations_view = ItemOperations.as_view("categoryOperations")
+blp.add_url_rule("/items", view_func=itemsOperations_view)
+blp.add_url_rule("/items/<int:item_id>", view_func=itemOperations_view)

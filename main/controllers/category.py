@@ -1,7 +1,6 @@
-from flask import request
+from flask import Blueprint, request
 from flask.views import MethodView
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from flask_smorest import Blueprint
 from sqlalchemy.exc import SQLAlchemyError
 
 from main import db
@@ -11,21 +10,21 @@ from main.commons.exceptions import (
     Unauthorized,
     ValidationError,
 )
+from main.engines.validator import validate
 from main.models.category import CategoryModel
-from main.schemas.category import CategorySchema, PagingCategorySchema
+from main.schemas.category import CategorySchema
 
-blp = Blueprint("Categories", __name__, description="Operations on categories")
+blp = Blueprint("Categories", __name__)
 
 
-@blp.route("/categories")
-class CategoryCreate(MethodView):
+class CategoriesOperations(MethodView):
     @jwt_required()
-    @blp.arguments(CategorySchema)
-    def post(self, category_data):
+    def post(self):
+        category_data = validate(request, CategorySchema)
         if CategoryModel.query.filter(
             CategoryModel.name == category_data["name"]
         ).first():
-            raise BadRequest()
+            raise BadRequest(error_message="Category already exists")
         user_id = get_jwt_identity()
         category = CategoryModel(name=category_data["name"])
         category.user_id = user_id
@@ -34,10 +33,9 @@ class CategoryCreate(MethodView):
             db.session.commit()
         except SQLAlchemyError:
             raise InternalServerError()
-        return {"message": "Category created successfully"}, 201
+        return {"message": "Category created successfully"}, 200
 
     @jwt_required()
-    @blp.response(200, PagingCategorySchema)
     def get(self):
         user_id = get_jwt_identity()
         args = request.args
@@ -64,21 +62,20 @@ class CategoryCreate(MethodView):
         categories = CategoryModel.query.paginate(
             page=page, per_page=items_per_page, error_out=False
         )
+
         for category in categories:
-            if category.user_id == user_id:
-                category.is_owner = True
-            else:
-                category.is_owner = False
-        page_response = PagingCategorySchema()
-        page_response.page = page
-        page_response.items_per_page = items_per_page
-        page_response.items = categories
-        page_response.total_items = categories.total
-        return page_response
+            category.is_owner = category.user_id == user_id
+
+        categories = CategorySchema(many=True).dump(categories)
+        return {
+            "page": page,
+            "items_per_page": items_per_page,
+            "items": categories,
+            "total_items": len(categories),
+        }
 
 
-@blp.route("/categories/<int:category_id>")
-class CategoryDelete(MethodView):
+class CategoryOperations(MethodView):
     @jwt_required()
     def delete(self, category_id):
         user_id = get_jwt_identity()
@@ -90,3 +87,9 @@ class CategoryDelete(MethodView):
         db.session.delete(category)
         db.session.commit()
         return {"message": "Category deleted successfully"}, 200
+
+
+categoriesOperations_view = CategoriesOperations.as_view("categoriesOperations")
+categoryOperations_view = CategoryOperations.as_view("categoryOperations")
+blp.add_url_rule("/categories", view_func=categoriesOperations_view)
+blp.add_url_rule("/categories/<int:category_id>", view_func=categoryOperations_view)

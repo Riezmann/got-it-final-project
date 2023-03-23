@@ -5,9 +5,13 @@ from pathlib import Path
 import pytest
 from alembic.command import upgrade
 from alembic.config import Config
+from passlib.hash import pbkdf2_sha256 as sha256
 
 from main import app as _app
 from main import db
+from main.engines.salt_generator import generate_salt
+from main.models.category import CategoryModel
+from main.models.user import UserModel
 
 if os.getenv("ENVIRONMENT") != "test":
     print('Tests should be run with "ENVIRONMENT=test"')
@@ -57,4 +61,24 @@ def session(recreate_database):
 
 @pytest.fixture(scope="function", autouse=True)
 def client(app, session):
+    app.testing = True
     return app.test_client()
+
+
+@pytest.fixture(scope="function")
+def user():
+    email = "bao.thcs20@gmail.com"
+    password = "Aa@123"
+    hashed_password = sha256.using(salt=generate_salt()).hash(password)
+    user = UserModel(email=email, hashed_password=hashed_password)
+    db.session.add(user)
+    db.session.commit()
+    return db.session.query(UserModel).filter_by(email=email).first()
+
+
+@pytest.fixture(scope="function")
+def categories(user):
+    for i in range(30):
+        category = CategoryModel(name=f"Category {i}", user_id=user.id)
+        db.session.add(category)
+    db.session.commit()
