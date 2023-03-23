@@ -6,9 +6,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from main import db
 from main.commons.exceptions import (
     BadRequest,
+    Forbidden,
     InternalServerError,
     NotFound,
-    Unauthorized,
     ValidationError,
 )
 from main.engines.validator import validate
@@ -51,13 +51,10 @@ class ItemsOperations(MethodView):
         user_id = get_jwt_identity()
         args = request.args
 
-        page = args.get("page")
-        items_per_page = args.get("items-per-page")
+        page = args.get("page") or 1
+        items_per_page = args.get("items-per-page") or 20
         category_id = args.get("category-id")
 
-        if not page or not items_per_page:
-            page = 1
-            items_per_page = 20
         try:
             page = int(page)
             items_per_page = int(items_per_page)
@@ -70,17 +67,24 @@ class ItemsOperations(MethodView):
                 },
             ).to_response()
 
+        item_query = ItemModel.query
+
         if category_id:
-            category = CategoryModel.query.get(category_id)
-            if not category:
-                return BadRequest(error_message="Category does not exist").to_response()
-            items = ItemModel.query.filter(
-                ItemModel.category_id == category_id
-            ).paginate(page=page, per_page=items_per_page, error_out=False)
-        else:
-            items = ItemModel.query.paginate(
-                page=page, per_page=items_per_page, error_out=False
-            )
+            try:
+                category_id = int(category_id)
+            except ValueError:
+                return ValidationError(
+                    error_message="Query params are not integers",
+                    error_data={
+                        "category_id": "Category id must be an integer",
+                    },
+                ).to_response()
+            if not db.session.get(CategoryModel, category_id):
+                return NotFound(error_message="Category does not exist").to_response()
+            item_query = item_query.filter(ItemModel.category_id == category_id)
+
+        items = item_query.paginate(page=page, per_page=items_per_page, error_out=False)
+
         for item in items:
             item.is_owner = item.user_id == user_id
 
@@ -89,26 +93,28 @@ class ItemsOperations(MethodView):
             "page": page,
             "items_per_page": items_per_page,
             "items": items,
-            "total_items": len(items),
+            "total_items": ItemModel.query.count(),
         }
 
 
 class ItemOperations(MethodView):
     @jwt_required()
     def get(self, item_id):
-        item = ItemModel.query.get(item_id)
+        item = db.session.get(ItemModel, item_id)
         if not item:
             return NotFound(error_message="Item not found").to_response()
+        user_id = get_jwt_identity()
+        item.is_owner = item.user_id == user_id
         return ItemSchema().dump(item), 200
 
     @jwt_required()
     def put(self, item_id):
         item_data = validate(request, ItemSchema)
         user_id = get_jwt_identity()
-        item = ItemModel.query.get(item_id)
+        item = db.session.get(ItemModel, item_id)
         if item:
             if item.user_id != user_id:
-                return Unauthorized().to_response()
+                return Forbidden().to_response()
             item.name = item_data["name"]
             item.description = item_data["description"]
             item.category_id = item_data["category_id"]
@@ -122,11 +128,11 @@ class ItemOperations(MethodView):
     @jwt_required()
     def delete(self, item_id):
         user_id = get_jwt_identity()
-        item = ItemModel.query.get(item_id)
+        item = db.session.get(ItemModel, item_id)
         if not item:
             return {"message": "Item deleted successfully"}, 200
         if user_id != item.user_id:
-            return Unauthorized().to_response()
+            return Forbidden().to_response()
         db.session.delete(item)
         db.session.commit()
         return {"message": "Item deleted successfully"}, 200

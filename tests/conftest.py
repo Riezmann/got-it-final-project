@@ -11,6 +11,7 @@ from main import app as _app
 from main import db
 from main.engines.salt_generator import generate_salt
 from main.models.category import CategoryModel
+from main.models.item import ItemModel
 from main.models.user import UserModel
 
 if os.getenv("ENVIRONMENT") != "test":
@@ -81,4 +82,18 @@ def categories(user):
     for i in range(30):
         category = CategoryModel(name=f"Category {i}", user_id=user.id)
         db.session.add(category)
+    db.session.commit()
+    return db.session.query(CategoryModel).all()
+
+
+@pytest.fixture(scope="function")
+def items(categories, user):
+    for i in range(30):
+        item = ItemModel(
+            name=f"Item {i}",
+            description=f"Test item {i}",
+            category_id=categories[i].id,
+            user_id=user.id,
+        )
+        db.session.add(item)
     db.session.commit()

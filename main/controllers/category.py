@@ -6,8 +6,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from main import db
 from main.commons.exceptions import (
     BadRequest,
+    Forbidden,
     InternalServerError,
-    Unauthorized,
     ValidationError,
 )
 from main.engines.validator import validate
@@ -40,12 +40,8 @@ class CategoriesOperations(MethodView):
         user_id = get_jwt_identity()
         args = request.args
 
-        page = args.get("page")
-        items_per_page = args.get("items-per-page")
-
-        if not page or not items_per_page:
-            page = 1
-            items_per_page = 20
+        page = args.get("page") or 1
+        items_per_page = args.get("items-per-page") or 20
 
         try:
             page = int(page)
@@ -71,7 +67,7 @@ class CategoriesOperations(MethodView):
             "page": page,
             "items_per_page": items_per_page,
             "items": categories,
-            "total_items": len(categories),
+            "total_items": CategoryModel.query.count(),
         }
 
 
@@ -79,14 +75,14 @@ class CategoryOperations(MethodView):
     @jwt_required()
     def delete(self, category_id):
         user_id = get_jwt_identity()
-        category = CategoryModel.query.get(category_id)
+        category = db.session.get(CategoryModel, category_id)
         if not category:
-            return {"message": "Category deleted successfully"}, 200
+            return {}, 200
         if user_id != category.user_id:
-            return Unauthorized().to_response()
+            return Forbidden().to_response()
         db.session.delete(category)
         db.session.commit()
-        return {"message": "Category deleted successfully"}, 200
+        return {}, 200
 
 
 categoriesOperations_view = CategoriesOperations.as_view("categoriesOperations")

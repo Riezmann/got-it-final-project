@@ -9,7 +9,6 @@ from flask_sqlalchemy import SQLAlchemy
 
 from ._config import config
 from .commons.error_handlers import register_error_handlers
-from .engines.db_initializer import create_database
 
 app = Flask(__name__)
 
