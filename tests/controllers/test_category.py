@@ -6,17 +6,33 @@ normal_category = {"name": "PC accessories"}
 name_not_str_category = {"name": 1}
 empty_category = {}
 
-user_name = "bao.thcs20@gmail.com"
-password = "Aa@123"
+existing_user_name = "bao.thcs20@gmail.com"
+existing_password = "Aa@123"
 
 new_user_name = "bao-test1@gmail.com"
 new_password = "Aa@123"
 
 
-def test_create_category(client):
-    response = client.post("/users", json={"email": user_name, "password": password})
-    access_token = response.json["access_token"]
-    headers = {"Authorization": "Bearer {}".format(access_token)}
+def get_login_auth_header(client):
+    auth_response = client.post(
+        "/access-tokens",
+        json={"email": existing_user_name, "password": existing_password},
+    )
+    logging.warning(auth_response.json)
+    access_token = auth_response.json["access_token"]
+    return {"Authorization": "Bearer {}".format(access_token)}
+
+
+def get_regis_auth_header(client):
+    auth_response = client.post(
+        "/users", json={"email": new_user_name, "password": new_password}
+    )
+    access_token = auth_response.json["access_token"]
+    return {"Authorization": "Bearer {}".format(access_token)}
+
+
+def test_create_category(client, users):
+    headers = get_login_auth_header(client)
 
     response = client.post("/categories", json=normal_category, headers=headers)
     assert response.status_code == 200
@@ -40,11 +56,7 @@ def test_paging_get_category(categories, client):
     def check_category(category_object, category_idx):
         assert category_object["name"] == "Category {}".format(category_idx)
 
-    response = client.post(
-        "/access-tokens", json={"email": user_name, "password": password}
-    )
-    access_token = response.json["access_token"]
-    headers = {"Authorization": "Bearer {}".format(access_token)}
+    headers = get_login_auth_header(client)
 
     # case when getting the first 20 categories
     response = client.get("/categories", headers=headers)
@@ -53,7 +65,7 @@ def test_paging_get_category(categories, client):
     total_items = response.json["total_items"]
     items = response.json["items"]
     assert response.status_code == 200
-    assert total_items == 30
+    assert total_items == 60
     assert len(items) == 20
     assert page == 1
     for index, category in enumerate(response.json["items"]):
@@ -67,19 +79,19 @@ def test_paging_get_category(categories, client):
     total_items = response.json["total_items"]
     items = response.json["items"]
     assert response.status_code == 200
-    assert total_items == 30
-    assert len(items) == 10
+    assert total_items == 60
+    assert len(items) == 20
     assert page == 2
     for index, category in enumerate(response.json["items"]):
         category_index = (page - 1) * items_per_page + index
         check_category(category, category_index)
 
     # case when getting the page that out of range
-    response = client.get("/categories?page=3", headers=headers)
+    response = client.get("/categories?page=4", headers=headers)
     assert response.status_code == 200
-    assert response.json["total_items"] == 30
+    assert response.json["total_items"] == 60
     assert len(response.json["items"]) == 0
-    assert response.json["page"] == 3
+    assert response.json["page"] == 4
 
     # case when items_per_page varies
     for items_per_page in range(1, 20):
@@ -90,7 +102,7 @@ def test_paging_get_category(categories, client):
         total_items = response.json["total_items"]
         items = response.json["items"]
         assert response.status_code == 200
-        assert total_items == 30
+        assert total_items == 60
         assert len(items) == items_per_page
         assert page == 1
         for index, category in enumerate(response.json["items"]):
@@ -109,17 +121,11 @@ def test_paging_get_category(categories, client):
 
 
 def test_not_owner_get_category(categories, client):
-    """Test case when user is not owner of category"""
-
     def check_category(category_object, category_idx):
         assert category_object["is_owner"] is False
         assert category_object["name"] == "Category {}".format(category_idx)
 
-    response = client.post(
-        "/users", json={"email": new_user_name, "password": new_password}
-    )
-    access_token = response.json["access_token"]
-    headers = {"Authorization": "Bearer {}".format(access_token)}
+    headers = get_regis_auth_header(client)
 
     # case when getting the first 20 categories
     response = client.get("/categories", headers=headers)
@@ -128,7 +134,7 @@ def test_not_owner_get_category(categories, client):
     total_items = response.json["total_items"]
     items = response.json["items"]
     assert response.status_code == 200
-    assert total_items == 30
+    assert total_items == 60
     assert len(items) == 20
     assert page == 1
     for index, category in enumerate(response.json["items"]):
@@ -142,49 +148,37 @@ def test_not_owner_get_category(categories, client):
     total_items = response.json["total_items"]
     items = response.json["items"]
     assert response.status_code == 200
-    assert total_items == 30
-    assert len(items) == 10
+    assert total_items == 60
+    assert len(items) == 20
     assert page == 2
     for index, category in enumerate(response.json["items"]):
         category_index = (page - 1) * items_per_page + index
         check_category(category, category_index)
 
     # case when getting the page that out of range
-    response = client.get("/categories?page=3", headers=headers)
+    response = client.get("/categories?page=4", headers=headers)
     assert response.status_code == 200
-    assert response.json["total_items"] == 30
+    assert response.json["total_items"] == 60
     assert len(response.json["items"]) == 0
-    assert response.json["page"] == 3
+    assert response.json["page"] == 4
 
 
 def test_delete_category(categories, client):
-    """Test delete category in case the user is the creator"""
-
-    response = client.post(
-        "/access-tokens", json={"email": user_name, "password": password}
-    )
-    access_token = response.json["access_token"]
-    headers = {"Authorization": "Bearer {}".format(access_token)}
+    headers = get_login_auth_header(client)
     response = client.get("/categories", headers=headers)
     original_total_items = response.json["total_items"]
     logging.warning(response.json)
-    items = response.json["items"]
-    for category in items:
+    categories = response.json["items"]
+    for category in categories:
         response = client.delete(f"/categories/{category['id']}", headers=headers)
         assert response.status_code == 200
     response = client.get("/categories", headers=headers)
     assert response.status_code == 200
-    assert response.json["total_items"] == original_total_items - len(items)
+    assert response.json["total_items"] == original_total_items - len(categories)
 
 
 def test_unauthorized_delete_category(categories, client):
-    """Test delete category in case the user is not the creator"""
-
-    response = client.post(
-        "/users", json={"email": new_user_name, "password": new_password}
-    )
-    access_token = response.json["access_token"]
-    headers = {"Authorization": "Bearer {}".format(access_token)}
+    headers = get_regis_auth_header(client)
     response = client.get("/categories", headers=headers)
     original_total_items = response.json["total_items"]
     logging.warning(response.json)

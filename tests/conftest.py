@@ -67,33 +67,48 @@ def client(app, session):
 
 
 @pytest.fixture(scope="function")
-def user():
-    email = "bao.thcs20@gmail.com"
-    password = "Aa@123"
-    hashed_password = sha256.using(salt=generate_salt()).hash(password)
-    user = UserModel(email=email, hashed_password=hashed_password)
-    db.session.add(user)
+def users():
+    email1 = "bao.thcs20@gmail.com"
+    password1 = "Aa@123"
+    email2 = "bao.test1@gmail.com"
+    password2 = "Aa@123"
+    hashed_password1 = sha256.using(salt=generate_salt()).hash(password1)
+    hashed_password2 = sha256.using(salt=generate_salt()).hash(password2)
+    user1 = UserModel(email=email1, hashed_password=hashed_password1)
+    user2 = UserModel(email=email2, hashed_password=hashed_password2)
+    db.session.add(user1)
+    db.session.add(user2)
     db.session.commit()
-    return db.session.query(UserModel).filter_by(email=email).first()
+    return db.session.query(UserModel).all()
 
 
 @pytest.fixture(scope="function")
-def categories(user):
+def categories(users):
     for i in range(30):
-        category = CategoryModel(name=f"Category {i}", user_id=user.id)
+        category = CategoryModel(name=f"Category {i}", user_id=users[0].id)
+        db.session.add(category)
+    for i in range(30, 60):
+        category = CategoryModel(name=f"Category {i}", user_id=users[1].id)
         db.session.add(category)
     db.session.commit()
     return db.session.query(CategoryModel).all()
 
 
 @pytest.fixture(scope="function")
-def items(categories, user):
-    for i in range(30):
-        item = ItemModel(
+def items(categories, users):
+    for i in range(0, 60, 2):
+        item1 = ItemModel(
             name=f"Item {i}",
             description=f"Test item {i}",
             category_id=categories[i].id,
-            user_id=user.id,
+            user_id=users[0].id,
         )
-        db.session.add(item)
+        item2 = ItemModel(
+            name=f"Item {i + 1}",
+            description=f"Test item {i + 1}",
+            category_id=categories[i].id,
+            user_id=users[1].id,
+        )
+        db.session.add(item1)
+        db.session.add(item2)
     db.session.commit()
