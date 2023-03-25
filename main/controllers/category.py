@@ -1,9 +1,8 @@
 from flask import Blueprint
 from flask.views import MethodView
-from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from main import db
-from main.commons.decorators import request_data
+from main.commons.decorators import request_data, required_jwt
 from main.commons.exceptions import BadRequest, Forbidden
 from main.models.category import CategoryModel
 from main.schemas.category import CategorySchema
@@ -13,14 +12,13 @@ blp = Blueprint("Categories", __name__)
 
 
 class CategoriesOperations(MethodView):
-    @jwt_required()
+    @required_jwt()
     @request_data(CategorySchema)
-    def post(self, category_data):
+    def post(self, user_id, category_data):
         if CategoryModel.query.filter(
             CategoryModel.name == category_data["name"]
         ).first():
             raise BadRequest(error_message="Category already exists")
-        user_id = get_jwt_identity()
         category = CategoryModel(name=category_data["name"])
         category.user_id = user_id
         db.session.add(category)
@@ -28,10 +26,9 @@ class CategoriesOperations(MethodView):
         category.is_owner = True
         return CategorySchema().dump(category)
 
-    @jwt_required()
+    @required_jwt()
     @request_data(PagingSchema)
-    def get(self, queries_data):
-        user_id = get_jwt_identity()
+    def get(self, user_id, queries_data):
         page = queries_data["page"]
         items_per_page = queries_data["items_per_page"]
 
@@ -50,9 +47,8 @@ class CategoriesOperations(MethodView):
 
 
 class CategoryOperations(MethodView):
-    @jwt_required()
-    def delete(self, category_id):
-        user_id = get_jwt_identity()
+    @required_jwt()
+    def delete(self, user_id, category_id):
         category = db.session.get(CategoryModel, category_id)
         if not category:
             return {}

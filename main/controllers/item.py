@@ -1,9 +1,8 @@
 from flask import Blueprint
 from flask.views import MethodView
-from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from main import db
-from main.commons.decorators import request_data
+from main.commons.decorators import request_data, required_jwt
 from main.commons.exceptions import BadRequest, Forbidden, NotFound
 from main.libs.exist_checker import check_exist
 from main.libs.log import ServiceLogger
@@ -16,14 +15,13 @@ blp = Blueprint("Items", __name__)
 
 
 class ItemsOperations(MethodView):
-    @jwt_required()
+    @required_jwt()
     @request_data(ItemSchema)
-    def post(self, item_data):
+    def post(self, user_id, item_data):
         check_exist(CategoryModel, item_data["category_id"])
         item = ItemModel.query.filter(ItemModel.name == item_data["name"]).first()
         if item:
             return BadRequest(error_message="Item already exists").to_response()
-        user_id = get_jwt_identity()
         item = ItemModel(
             name=item_data["name"],
             description=item_data["description"],
@@ -35,10 +33,9 @@ class ItemsOperations(MethodView):
         item.is_owner = True
         return ItemSchema().dump(item)
 
-    @jwt_required()
+    @required_jwt()
     @request_data(PagingSchema)
-    def get(self, queries_data):
-        user_id = get_jwt_identity()
+    def get(self, user_id, queries_data):
         page = queries_data.get("page")
         items_per_page = queries_data.get("items_per_page")
         category_id = queries_data.get("category_id")
@@ -63,20 +60,18 @@ class ItemsOperations(MethodView):
 
 
 class ItemOperations(MethodView):
-    @jwt_required()
-    def get(self, item_id):
+    @required_jwt()
+    def get(self, user_id, item_id):
         item = db.session.get(ItemModel, item_id)
         if not item:
             return NotFound(error_message="Item not found").to_response()
-        user_id = get_jwt_identity()
         item.is_owner = item.user_id == user_id
         return ItemSchema().dump(item)
 
-    @jwt_required()
+    @required_jwt()
     @request_data(ItemSchema)
-    def put(self, item_data, item_id):
+    def put(self, user_id, item_data, item_id):
         ServiceLogger(name="ItemOperations").info(message=f"item id: {item_id}")
-        user_id = get_jwt_identity()
         check_exist(CategoryModel, item_data["category_id"])
         item = db.session.get(ItemModel, item_id)
         if item:
@@ -91,9 +86,8 @@ class ItemOperations(MethodView):
         db.session.commit()
         return ItemSchema().dump(item)
 
-    @jwt_required()
-    def delete(self, item_id):
-        user_id = get_jwt_identity()
+    @required_jwt()
+    def delete(self, user_id, item_id):
         item = db.session.get(ItemModel, item_id)
         if not item:
             return NotFound(error_message="Item not found").to_response()
