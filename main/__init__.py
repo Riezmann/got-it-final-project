@@ -1,4 +1,3 @@
-import secrets
 from importlib import import_module
 
 from flask import Flask
@@ -20,17 +19,17 @@ jwt = JWTManager(app)
 
 
 @jwt.expired_token_loader
-def expired_token_callback():
+def expired_token_callback(_header, _payload):
     return Unauthorized(error_message="Token has expired").to_response()
 
 
 @jwt.invalid_token_loader
-def invalid_token_callback(error):
+def invalid_token_callback(_error):
     return Unauthorized(error_message="Invalid token").to_response()
 
 
 @jwt.unauthorized_loader
-def unauthorized_callback(error):
+def unauthorized_callback(_error):
     return Unauthorized(error_message="Missing authorization header").to_response()
 
 
@@ -45,13 +44,13 @@ def register_subpackages():
     for m in models.__all__:
         import_module("main.models." + m)
 
-    from main.controllers.category import blp as CategoryBlueprint
-    from main.controllers.item import blp as ItemBlueprint
-    from main.controllers.user import blp as UserBlueprint
+    from main.controllers.category import blp as category_blueprint
+    from main.controllers.item import blp as item_blueprint
+    from main.controllers.user import blp as user_blueprint
 
-    app.register_blueprint(CategoryBlueprint)
-    app.register_blueprint(ItemBlueprint)
-    app.register_blueprint(UserBlueprint)
+    app.register_blueprint(category_blueprint)
+    app.register_blueprint(item_blueprint)
+    app.register_blueprint(user_blueprint)
 
 
 register_subpackages()

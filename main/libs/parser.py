@@ -1,6 +1,7 @@
 from marshmallow import ValidationError
 
 from main.commons import exceptions
+from main.libs.log import ServiceLogger
 
 
 def parse_request_body(request, schema):
@@ -13,8 +14,8 @@ def parse_request_body(request, schema):
 
 def parse_request_queries(request, schema):
     try:
-        raw_queries = request.args.to_dict()
-        data = schema().load(raw_queries)
-    except ValueError:
-        raise ValidationError(error_message="Query params are not integers")
+        ServiceLogger(name="parse_request_queries").info(message=request.args.to_dict())
+        data = schema().load(request.args.to_dict())
+    except ValidationError as err:
+        raise exceptions.ValidationError(error_data=err.messages)
     return data

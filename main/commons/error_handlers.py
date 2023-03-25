@@ -1,3 +1,5 @@
+from sqlalchemy.exc import IntegrityError
+
 from .exceptions import (
     BaseError,
     InternalServerError,
@@ -39,6 +41,15 @@ def register_error_handlers(app):
             },
         )
         return error.to_response()
+
+    @app.errorhandler(IntegrityError)
+    def handle_integrity_error(error: IntegrityError):
+        from main.libs.log import ServiceLogger
+
+        logger = ServiceLogger(__name__)
+        logger.exception(message=str(error))
+        message = str(error).split('"')[1]
+        return InternalServerError(error_message=message).to_response()
 
     @app.errorhandler(Exception)
     def handle_exception(e):

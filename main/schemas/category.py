@@ -1,4 +1,4 @@
-from marshmallow import fields, validate
+from marshmallow import fields, post_load, validate
 
 from main.schemas.base import BaseSchema
 
@@ -14,3 +14,8 @@ class CategorySchema(BaseSchema):
         ],
     )
     is_owner = fields.Boolean(dump_only=True)
+
+    @post_load
+    def remove_whitespace(self, data, **kwargs):
+        data["name"] = data["name"].strip()
+        return data

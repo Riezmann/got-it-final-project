@@ -1,10 +1,10 @@
-from flask import Blueprint, request
+from flask import Blueprint
 from flask.views import MethodView
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from main import db
+from main.commons.decorators import request_data
 from main.commons.exceptions import BadRequest, Forbidden
-from main.libs.parser import parse_request_body, parse_request_queries
 from main.models.category import CategoryModel
 from main.schemas.category import CategorySchema
 from main.schemas.paging import PagingSchema
@@ -14,8 +14,8 @@ blp = Blueprint("Categories", __name__)
 
 class CategoriesOperations(MethodView):
     @jwt_required()
-    def post(self):
-        category_data = parse_request_body(request, CategorySchema)
+    @request_data(CategorySchema)
+    def post(self, category_data):
         if CategoryModel.query.filter(
             CategoryModel.name == category_data["name"]
         ).first():
@@ -29,17 +29,17 @@ class CategoriesOperations(MethodView):
         return CategorySchema().dump(category)
 
     @jwt_required()
-    def get(self):
+    @request_data(PagingSchema)
+    def get(self, queries_data):
         user_id = get_jwt_identity()
-        page, items_per_page = parse_request_queries(request, PagingSchema)
+        page = queries_data["page"]
+        items_per_page = queries_data["items_per_page"]
 
         categories = CategoryModel.query.paginate(
             page=page, per_page=items_per_page, error_out=False
         )
-
         for category in categories:
             category.is_owner = category.user_id == user_id
-
         categories = CategorySchema(many=True).dump(categories)
         return {
             "page": page,

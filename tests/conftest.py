@@ -9,7 +9,6 @@ from passlib.hash import pbkdf2_sha256 as sha256
 
 from main import app as _app
 from main import db
-from main.libs.salt_generator import generate_salt
 from main.models.category import CategoryModel
 from main.models.item import ItemModel
 from main.models.user import UserModel
@@ -72,8 +71,8 @@ def users():
     password1 = "Aa@123"
     email2 = "bao.test1@gmail.com"
     password2 = "Aa@123"
-    hashed_password1 = sha256.using(salt=generate_salt()).hash(password1)
-    hashed_password2 = sha256.using(salt=generate_salt()).hash(password2)
+    hashed_password1 = sha256.hash(password1)
+    hashed_password2 = sha256.hash(password2)
     user1 = UserModel(email=email1, hashed_password=hashed_password1)
     user2 = UserModel(email=email2, hashed_password=hashed_password2)
     db.session.add(user1)
