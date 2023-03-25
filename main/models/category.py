@@ -13,5 +13,7 @@ class CategoryModel(db.Model):
     updated_time = db.Column(
         db.DateTime, nullable=False, default=db.func.current_timestamp()
     )
-    items = db.relationship("ItemModel", back_populates="category", lazy="dynamic")
+    items = db.relationship(
+        "ItemModel", back_populates="category", cascade="all, delete", lazy="dynamic"
+    )
     user = db.relationship("UserModel", back_populates="categories")

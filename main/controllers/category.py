@@ -1,14 +1,13 @@
 from flask import Blueprint, request
 from flask.views import MethodView
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from sqlalchemy.exc import SQLAlchemyError
 
 from main import db
-from main.commons.exceptions import BadRequest, Forbidden, InternalServerError
-from main.libs.int_parser import parse_int
-from main.libs.validator import validate
+from main.commons.exceptions import BadRequest, Forbidden
+from main.libs.parser import parse_request_body, parse_request_queries
 from main.models.category import CategoryModel
 from main.schemas.category import CategorySchema
+from main.schemas.paging import PagingSchema
 
 blp = Blueprint("Categories", __name__)
 
@@ -16,7 +15,7 @@ blp = Blueprint("Categories", __name__)
 class CategoriesOperations(MethodView):
     @jwt_required()
     def post(self):
-        category_data = validate(request, CategorySchema)
+        category_data = parse_request_body(request, CategorySchema)
         if CategoryModel.query.filter(
             CategoryModel.name == category_data["name"]
         ).first():
@@ -24,22 +23,15 @@ class CategoriesOperations(MethodView):
         user_id = get_jwt_identity()
         category = CategoryModel(name=category_data["name"])
         category.user_id = user_id
-        try:
-            db.session.add(category)
-            db.session.commit()
-        except SQLAlchemyError:
-            raise InternalServerError()
-        return {"message": "Category created successfully"}, 200
+        db.session.add(category)
+        db.session.commit()
+        category.is_owner = True
+        return CategorySchema().dump(category)
 
     @jwt_required()
     def get(self):
         user_id = get_jwt_identity()
-        args = request.args
-
-        page = args.get("page") or 1
-        items_per_page = args.get("items-per-page") or 20
-
-        page, items_per_page = parse_int(page, items_per_page)
+        page, items_per_page = parse_request_queries(request, PagingSchema)
 
         categories = CategoryModel.query.paginate(
             page=page, per_page=items_per_page, error_out=False
@@ -63,12 +55,12 @@ class CategoryOperations(MethodView):
         user_id = get_jwt_identity()
         category = db.session.get(CategoryModel, category_id)
         if not category:
-            return {}, 200
+            return {}
         if user_id != category.user_id:
             return Forbidden().to_response()
         db.session.delete(category)
         db.session.commit()
-        return {}, 200
+        return {}
 
 
 categoriesOperations_view = CategoriesOperations.as_view("categoriesOperations")

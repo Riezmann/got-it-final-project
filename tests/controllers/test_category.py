@@ -163,7 +163,7 @@ def test_not_owner_get_category(categories, client):
     assert response.json["page"] == 4
 
 
-def test_delete_category(categories, client):
+def test_delete_category(categories, items, client):
     headers = get_login_auth_header(client)
     response = client.get("/categories", headers=headers)
     original_total_items = response.json["total_items"]
@@ -177,7 +177,7 @@ def test_delete_category(categories, client):
     assert response.json["total_items"] == original_total_items - len(categories)
 
 
-def test_unauthorized_delete_category(categories, client):
+def test_unauthorized_delete_category(categories, items, client):
     headers = get_regis_auth_header(client)
     response = client.get("/categories", headers=headers)
     original_total_items = response.json["total_items"]

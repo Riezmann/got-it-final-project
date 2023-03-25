@@ -8,8 +8,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from main import db
 from main.commons.exceptions import BadRequest, InternalServerError, Unauthorized
+from main.libs.parser import parse_request_body
 from main.libs.salt_generator import generate_salt
-from main.libs.validator import validate
 from main.schemas.user import UserSchema
 
 from ..models.user import UserModel
@@ -19,7 +19,7 @@ blp = Blueprint("Users", __name__, url_prefix="/")
 
 class UserRegister(MethodView):
     def post(self):
-        user_data = validate(request, UserSchema)
+        user_data = parse_request_body(request, UserSchema)
         if UserModel.query.filter(UserModel.email == user_data["email"]).first():
             return BadRequest(error_message="User already exists").to_response()
         user = UserModel(
@@ -41,7 +41,7 @@ class UserRegister(MethodView):
 
 class UserLogin(MethodView):
     def post(self):
-        user_data = validate(request, UserSchema)
+        user_data = parse_request_body(request, UserSchema)
         user = UserModel.query.filter(UserModel.email == user_data["email"]).first()
         if user and sha256.verify(user_data["password"], user.hashed_password):
             access_token = create_access_token(

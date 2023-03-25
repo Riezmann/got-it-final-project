@@ -5,8 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from main import db
 from main.commons.exceptions import BadRequest, Forbidden, InternalServerError, NotFound
-from main.libs.int_parser import parse_int
-from main.libs.validator import validate
+from main.libs.parser import parse_request_body, parse_request_queries
 from main.models.category import CategoryModel
 from main.models.item import ItemModel
 from main.schemas.item import ItemSchema
@@ -17,7 +16,7 @@ blp = Blueprint("Items", __name__)
 class ItemsOperations(MethodView):
     @jwt_required()
     def post(self):
-        item_data = validate(request, ItemSchema)
+        item_data = parse_request_body(request, ItemSchema)
         category = CategoryModel.query.filter(
             CategoryModel.id == item_data["category_id"]
         ).first()
@@ -37,25 +36,22 @@ class ItemsOperations(MethodView):
         try:
             db.session.add(item)
             db.session.commit()
-            return ItemSchema().dump(item), 200
+            return ItemSchema().dump(item)
         except SQLAlchemyError:
             return InternalServerError().to_response()
 
     @jwt_required()
     def get(self):
         user_id = get_jwt_identity()
-        args = request.args
+        queries = parse_request_queries(request)
 
-        page = args.get("page") or 1
-        items_per_page = args.get("items-per-page") or 20
-        category_id = args.get("category-id")
-
-        page, items_per_page = parse_int(page, items_per_page)
+        page = queries.get("page")
+        items_per_page = queries.get("items-per-page")
+        category_id = queries.get("category_id")
 
         item_query = ItemModel.query
 
         if category_id:
-            category_id = parse_int(category_id)
             if not db.session.get(CategoryModel, category_id):
                 return NotFound(error_message="Category does not exist").to_response()
             item_query = item_query.filter(ItemModel.category_id == category_id)
@@ -82,11 +78,11 @@ class ItemOperations(MethodView):
             return NotFound(error_message="Item not found").to_response()
         user_id = get_jwt_identity()
         item.is_owner = item.user_id == user_id
-        return ItemSchema().dump(item), 200
+        return ItemSchema().dump(item)
 
     @jwt_required()
     def put(self, item_id):
-        item_data = validate(request, ItemSchema)
+        item_data = parse_request_body(request, ItemSchema)
         user_id = get_jwt_identity()
         item = db.session.get(ItemModel, item_id)
         if item:
@@ -100,19 +96,19 @@ class ItemOperations(MethodView):
             item = ItemModel(id=item_id, **item_data, user_id=user_id)
             db.session.add(item)
         db.session.commit()
-        return ItemSchema().dump(item), 200
+        return ItemSchema().dump(item)
 
     @jwt_required()
     def delete(self, item_id):
         user_id = get_jwt_identity()
         item = db.session.get(ItemModel, item_id)
         if not item:
-            return {"message": "Item deleted successfully"}, 200
+            return {"message": "Item deleted successfully"}
         if user_id != item.user_id:
             return Forbidden().to_response()
         db.session.delete(item)
         db.session.commit()
-        return {"message": "Item deleted successfully"}, 200
+        return {"message": "Item deleted successfully"}
 
 
 itemsOperations_view = ItemsOperations.as_view("itemsOperations")
