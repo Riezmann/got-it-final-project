@@ -24,13 +24,13 @@ def expired_token_callback(_header, _payload):
 
 
 @jwt.invalid_token_loader
-def invalid_token_callback(_error):
+def invalid_token_callback(_):
     return Unauthorized(error_message="Invalid token").to_response()
 
 
 @jwt.unauthorized_loader
-def unauthorized_callback(_error):
-    return Unauthorized(error_message="Missing authorization header").to_response()
+def unauthorized_callback(error):
+    return Unauthorized(error_message=error).to_response()
 
 
 migrate = Migrate(app, db)

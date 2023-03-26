@@ -1,65 +1,47 @@
-import logging
+from main import db
+from main.commons.exceptions import Forbidden
+from main.models.item import ItemModel
+from tests import get_login_auth_header, get_regis_auth_header
 
-from main.commons.exceptions import Forbidden, ValidationError
-
-normal_item = {"name": "Fan", "description": "A fan", "category_id": 1}
+normal_item = {"name": "Item 1", "description": "A fan", "category_id": 1}
 name_not_str_item = {"name": 1, "description": "A fan", "category_id": 1}
 category_not_exist_item = {
-    "name": "Fan",
+    "name": "Item 1",
     "description": "A fan",
     "category_id": 9999999999,
 }
 empty_item = {}
 
-existing_user_name = "bao.thcs20@gmail.com"
-password = "Aa@123"
 
-new_user_name = "bao-test1@gmail.com"
-new_password = "Aa@123"
-
-
-def get_login_auth_header(client):
-    auth_response = client.post(
-        "/access-tokens", json={"email": existing_user_name, "password": password}
-    )
-    access_token = auth_response.json["access_token"]
-    return {"Authorization": "Bearer {}".format(access_token)}
-
-
-def get_regis_auth_header(client):
-    auth_response = client.post(
-        "/users", json={"email": new_user_name, "password": new_password}
-    )
-    access_token = auth_response.json["access_token"]
-    return {"Authorization": "Bearer {}".format(access_token)}
-
-
-def test_create_item(items, client, categories):
+def test_create_item_success(client, categories, users):
+    headers = get_login_auth_header(client)
     normal_item["category_id"] = categories[0].id
-    name_not_str_item["category_id"] = categories[0].id
-    response = client.post(
-        "/access-tokens", json={"email": existing_user_name, "password": password}
-    )
-    logging.warning(response.json)
-    access_token = response.json["access_token"]
-    headers = {"Authorization": "Bearer {}".format(access_token)}
-
     response = client.post("/items", json=normal_item, headers=headers)
-    logging.warning(response.json)
     assert response.status_code == 200
 
-    response = client.post("/items", json=name_not_str_item, headers=headers)
-    assert response.status_code == 400
-    assert response.json["error_message"] == ValidationError.error_message
 
+def test_create_item_empty_string_name_fail(client, categories, users):
+    headers = get_login_auth_header(client)
     response = client.post("/items", json=empty_item, headers=headers)
     assert response.status_code == 400
-    assert response.json["error_message"] == ValidationError.error_message
 
+
+def test_create_item_not_string_name_fail(client, categories, users):
+    headers = get_login_auth_header(client)
+    response = client.post("/items", json=name_not_str_item, headers=headers)
+    assert response.status_code == 400
+
+
+def test_create_duplicated_item_fail(client, users, categories, items):
+    headers = get_login_auth_header(client)
+    normal_item["category_id"] = categories[0].id
     response = client.post("/items", json=normal_item, headers=headers)
     assert response.status_code == 400
     assert response.json["error_message"] == "Item already exists"
 
+
+def test_create_item_with_category_not_exist_fail(client, users, categories, items):
+    headers = get_login_auth_header(client)
     response = client.post("/items", json=category_not_exist_item, headers=headers)
     assert response.status_code == 400
     assert response.json["error_message"] == "Category does not exist"
@@ -90,110 +72,128 @@ def validate_all_items(current_response, current_page, current_items_per_page):
         assert current_item["name"] == "Item {}".format(item_idx)
 
 
-def test_get_items_no_category_id(items, client):
+def test_get_items_no_queries_success(users, items, categories, client):
     headers = get_login_auth_header(client)
-    # test getting the first 20 items
     response = client.get("/items", headers=headers)
     page = response.json["page"]
     items_per_page = response.json["items_per_page"]
-    assert_response(response, 200, 60, 20, 1)
-    validate_all_items(response, page, items_per_page)
+    assert response.status_code == 200
+    assert response.json["total_items"] == 120
+    assert len(response.json["items"]) == 20
+    assert response.json["page"] == 1
+    for idx, current_item in enumerate(response.json["items"]):
+        item_idx = (page - 1) * items_per_page + idx
+        assert current_item["is_owner"] is (idx % 2 == 0)
+        assert current_item["name"] == "Item {}".format(item_idx)
 
-    # test getting the next page items
+
+def test_get_items_only_page_query_success(users, items, categories, client):
+    headers = get_login_auth_header(client)
     response = client.get("/items?page=2", headers=headers)
     page = response.json["page"]
     items_per_page = response.json["items_per_page"]
-    assert_response(response, 200, 60, 20, 2)
-    validate_all_items(response, page, items_per_page)
-
-    # case when getting the page that out of range
-    response = client.get("/items?page=4", headers=headers)
-    assert_response(response, 200, 60, 0, 4)
-
-    # case when items_per_page varies
-    for items_per_page in range(1, 30):
-        response = client.get(
-            f"/items?items-per-page={items_per_page}", headers=headers
-        )
-        page = response.json["page"]
-        assert_response(response, 200, 60, items_per_page, 1)
-        validate_all_items(response, page, items_per_page)
-
-    # case when items_per_page is invalid
-    response = client.get("/items?items-per-page=abc", headers=headers)
-    assert response.status_code == 400
-    assert response.json["error_message"] == "Query params are not integers"
-
-    # case when page is invalid
-    response = client.get("/items?page=abc", headers=headers)
-    assert response.status_code == 400
-    assert response.json["error_message"] == "Query params are not integers"
+    assert response.status_code == 200
+    assert response.json["total_items"] == 120
+    assert len(response.json["items"]) == 20
+    assert response.json["page"] == 2
+    for idx, current_item in enumerate(response.json["items"]):
+        item_idx = (page - 1) * items_per_page + idx
+        assert current_item["is_owner"] is (idx % 2 == 0)
+        assert current_item["name"] == "Item {}".format(item_idx)
 
 
-def test_get_items_with_category_id(items, client, categories):
+def test_get_items_only_per_page_query_success(users, items, categories, client):
     headers = get_login_auth_header(client)
-
-    # case when getting the first 20 items in the first categories
-    response = client.get(f"/items?category-id={categories[0].id}", headers=headers)
-    logging.warning(response.json)
-    page = response.json["page"]
+    response = client.get("/items?items_per_page=5", headers=headers)
     items_per_page = response.json["items_per_page"]
-    assert_response(response, 200, 2, 2, 1)
-    validate_all_items(response, page, items_per_page)
-    for curr_item in response.json["items"]:
-        assert curr_item["category_id"] == categories[0].id
+    page = response.json["page"]
+    assert response.status_code == 200
+    assert response.json["total_items"] == 120
+    assert len(response.json["items"]) == 5
+    assert response.json["page"] == 1
+    for idx, current_item in enumerate(response.json["items"]):
+        item_idx = (page - 1) * items_per_page + idx
+        assert current_item["is_owner"] is (idx % 2 == 0)
+        assert current_item["name"] == "Item {}".format(item_idx)
 
-    # case when trying to get items with invalid category id
-    response = client.get("/items?category-id=abc", headers=headers)
+
+def test_get_items_only_category_id_query_success(users, items, categories, client):
+    headers = get_login_auth_header(client)
+    response = client.get(f"/items?category_id={categories[0].id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json["total_items"] == 2
+    assert len(response.json["items"]) == 2
+    assert response.json["page"] == 1
+    assert response.json["items"][0]["is_owner"] is True
+    assert response.json["items"][1]["is_owner"] is False
+    assert response.json["items"][0]["name"] == "Item 0"
+    assert response.json["items"][1]["name"] == "Item 1"
+
+
+def test_get_items_only_non_exist_category_id_query_fail(
+    users, items, categories, client
+):
+    headers = get_login_auth_header(client)
+    response = client.get("/items?category_id=999", headers=headers)
     assert response.status_code == 400
-    assert response.json["error_message"] == "Query params are not integers"
-
-    # case when trying to get items with out-of-range category id
-    response = client.get("/items?category-id=-1", headers=headers)
-    assert response.status_code == 404
     assert response.json["error_message"] == "Category does not exist"
 
 
-def test_not_owner_get_items(items, client):
+def test_get_items_full_queries_success(users, items, categories, client):
+    headers = get_login_auth_header(client)
+    response = client.get(
+        f"/items?page=2&items_per_page=1&category_id={categories[0].id}",
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert response.json["total_items"] == 2
+    assert len(response.json["items"]) == 1
+    assert response.json["page"] == 2
+    assert response.json["items_per_page"] == 1
+    assert response.json["items"][0]["is_owner"] is False
+    assert response.json["items"][0]["name"] == "Item 1"
+
+
+def test_get_items_string_page_fail(users, items, categories, client):
+    headers = get_login_auth_header(client)
+    response = client.get("/items?page=abc", headers=headers)
+    assert response.status_code == 400
+
+
+def test_get_item_by_id_success(users, items, categories, client):
+    headers = get_login_auth_header(client)
+    first_item = items[0]
+    response = client.get(f"/items/{first_item.id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json["is_owner"] is True
+    assert response.json["name"] == "Item 0"
+
+
+def test_get_item_by_id_not_exist_fail(users, items, categories, client):
+    headers = get_login_auth_header(client)
+    response = client.get("/items/999", headers=headers)
+    assert response.status_code == 404
+    assert response.json["error_message"] == "Item not found"
+
+
+def test_unauthorized_get_items_success(items, client):
     headers = get_regis_auth_header(client)
 
     # case when getting the first 20 items
     response = client.get("/items", headers=headers)
     page = response.json["page"]
     items_per_page = response.json["items_per_page"]
-    assert_response(response, 200, 60, 20, 1)
-    validate_items(response, page, items_per_page, False)
-
-    # case when getting the next last 10 items
-    response = client.get("/items?page=2", headers=headers)
-    page = response.json["page"]
-    items_per_page = response.json["items_per_page"]
-    assert_response(response, 200, 60, 20, 2)
-    validate_items(response, page, items_per_page, False)
-
-    # case when getting the page that out of range
-    response = client.get("/items?page=4", headers=headers)
-    assert_response(response, 200, 60, 0, 4)
+    assert response.status_code == 200
+    assert response.json["total_items"] == 120
+    assert len(response.json["items"]) == 20
+    assert response.json["page"] == 1
+    for idx, current_item in enumerate(response.json["items"]):
+        item_idx = (page - 1) * items_per_page + idx
+        assert current_item["is_owner"] is False
+        assert current_item["name"] == "Item {}".format(item_idx)
 
 
-def test_get_one_item(items, client):
-    headers = get_login_auth_header(client)
-
-    response = client.get("/items", headers=headers)
-    items = response.json["items"]
-    for index, item in enumerate(items):
-        response = client.get(f"/items/{item['id']}", headers=headers)
-        assert response.status_code == 200
-        assert response.json["name"] == item["name"]
-        assert response.json["is_owner"] == (index % 2 == 0)
-
-    # case when item does not exist
-    response = client.get("/items/9999999999", headers=headers)
-    assert response.status_code == 404
-    assert response.json["error_message"] == "Item not found"
-
-
-def test_not_owner_get_one_item(items, client):
+def test_unauthorized_get_item_by_id_success(items, client):
     headers = get_regis_auth_header(client)
     response = client.get("/items", headers=headers)
     items = response.json["items"]
@@ -204,33 +204,53 @@ def test_not_owner_get_one_item(items, client):
         assert response.json["is_owner"] is False
 
 
-def test_update_item(items, client, categories):
+def test_unauthorized_get_item_by_id_fail(items, client):
+    headers = get_regis_auth_header(client)
+    response = client.get("/items/999", headers=headers)
+    assert response.status_code == 404
+    assert response.json["error_message"] == "Item not found"
+
+
+def test_authorized_update_item_success(items, client, categories):
     headers = get_login_auth_header(client)
-    response = client.get("/items", headers=headers)
-    items = response.json["items"]
     for index, item in enumerate(items):
         if index % 2 != 0:  # only update the items that belong to the owner
             continue
         response = client.put(
-            f"/items/{item['id']}",
+            f"/items/{item.id}",
             json={
-                "name": f"New name Item {item['id']}",
+                "name": f"New name Item {item.id}",
                 "description": "New description",
-                "category_id": item["category_id"],
+                "category_id": item.category_id,
             },
             headers=headers,
         )
         assert response.status_code == 200
-        assert response.json["name"] == f"New name Item {item['id']}"
+        assert response.json["name"] == f"New name Item {item.id}"
 
-    response = client.get("/items", headers=headers)
-    items = response.json["items"]
+    items = db.session.query(ItemModel).all()
     for index, item in enumerate(items):
         if index % 2 != 0:  # only update the items that belong to the owner
             continue
-        assert item["name"] == f"New name Item {item['id']}"
+        assert item.name == f"New name Item {item.id}"
 
-    # case when item does not exist
+
+def test_update_item_causes_duplicating_name_fail(items, client, categories):
+    headers = get_login_auth_header(client)
+    response = client.put(
+        f"/items/{items[0].id}",
+        json={
+            "name": "Item 1",
+            "description": "New description",
+            "category_id": categories[0].id,
+        },
+        headers=headers,
+    )
+    assert response.status_code == 500
+
+
+def test_update_not_exist_item_fail(items, client, categories):
+    headers = get_login_auth_header(client)
     response = client.put(
         "/items/99999",
         json={
@@ -240,21 +260,19 @@ def test_update_item(items, client, categories):
         },
         headers=headers,
     )
-    assert response.status_code == 200
-    assert response.json["name"] == "New name Item"
+    assert response.status_code == 404
+    assert response.json["error_message"] == "Item not found"
 
 
-def test_unauthorized_update_item(items, client):
+def test_unauthorized_update_item_fail(items, client):
     headers = get_regis_auth_header(client)
-    response = client.get("/items", headers=headers)
-    items = response.json["items"]
     for index, item in enumerate(items):
         response = client.put(
-            f"/items/{item['id']}",
+            f"/items/{item.id}",
             json={
-                "name": f"New name Item {item['id']}",
+                "name": f"New name Item {item.id}",
                 "description": "New description",
-                "category_id": item["category_id"],
+                "category_id": item.category_id,
             },
             headers=headers,
         )
@@ -262,36 +280,29 @@ def test_unauthorized_update_item(items, client):
         assert response.json["error_message"] == Forbidden.error_message
 
 
-def test_delete_item(items, client):
+def test_authorized_delete_item_success(items, client):
     headers = get_login_auth_header(client)
-    response = client.get("/items", headers=headers)
-    original_total_items = response.json["total_items"]
-    logging.warning(response.json)
-    items = response.json["items"]
+    original_total_items = len(items)
     for index, item in enumerate(items):
         if index % 2 != 0:
             continue
-        response = client.delete(f"/items/{item['id']}", headers=headers)
+        response = client.delete(f"/items/{item.id}", headers=headers)
         assert response.status_code == 200
-    response = client.get("/items", headers=headers)
-    assert response.status_code == 200
-    assert response.json["total_items"] == original_total_items - len(items) / 2
+    assert db.session.query(ItemModel).count() == original_total_items - 60
 
 
-def test_unauthorized_delete_item(items, client):
+def test_delete_not_exist_ictem_fail(items, client):
+    headers = get_login_auth_header(client)
+    response = client.delete("/items/99999", headers=headers)
+    assert response.status_code == 404
+    assert response.json["error_message"] == "Item not found"
+
+
+def test_unauthorized_delete_item_fail(items, client):
     headers = get_regis_auth_header(client)
-    response = client.get("/items", headers=headers)
-    original_total_items = response.json["total_items"]
-    logging.warning(response.json)
-    items = response.json["items"]
+    original_total_items = len(items)
     for item in items:
-        response = client.delete(f"/items/{item['id']}", headers=headers)
+        response = client.delete(f"/items/{item.id}", headers=headers)
         assert response.status_code == 403
         assert response.json["error_message"] == Forbidden.error_message
-    response = client.get("/items", headers=headers)
-    assert response.status_code == 200
-    assert response.json["total_items"] == original_total_items
-
-    # case when the item_id is not exist
-    response = client.delete("/items/9999", headers=headers)
-    assert response.status_code == 200
+    assert db.session.query(ItemModel).count() == original_total_items

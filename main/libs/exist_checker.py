@@ -7,5 +7,7 @@ def check_exist(model, error_out=False, **kwargs):
     if obj:
         return obj
     if error_out:
-        raise BadRequest(error_message=f"{model.__tablename__} does not exist")
+        raise BadRequest(
+            error_message=f"{model.__tablename__.capitalize()} does not exist"
+        )
     return False

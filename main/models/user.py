@@ -1,7 +1,8 @@
 from main import db
+from main.models.base import BaseModel
 
 
-class UserModel(db.Model):
+class UserModel(BaseModel):
     __tablename__ = "user"
 
     id = db.Column(db.Integer, primary_key=True)

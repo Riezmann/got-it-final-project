@@ -4,3 +4,9 @@ def test_ping(client):
 
     response = client.post("/ping")
     assert response.status_code == 200
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+
+    response = client.post("/ready")
+    assert response.status_code == 405

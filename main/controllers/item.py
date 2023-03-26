@@ -52,7 +52,7 @@ class ItemsOperations(MethodView):
             page=page,
             items_per_page=items_per_page,
             items=items,
-            total_items=CategoryModel.query.count(),
+            total_items=item_query.count(),
         )
         return PagingItemSchema().jsonify(paging)
 

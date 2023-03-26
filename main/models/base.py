@@ -4,7 +4,7 @@ from main import db
 class BaseModel(db.Model):
 
     __abstract__ = True
-    id = db.Column(db.Integer, primary_key=True)
+
     created_time = db.Column(
         db.DateTime, nullable=False, default=db.func.current_timestamp()
     )

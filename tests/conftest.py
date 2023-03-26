@@ -95,15 +95,15 @@ def categories(users):
 
 @pytest.fixture(scope="function")
 def items(categories, users):
-    for i in range(0, 60, 2):
+    for i in range(0, 60):
         item1 = ItemModel(
-            name=f"Item {i}",
+            name=f"Item {2*i}",
             description=f"Test item {i}",
             category_id=categories[i].id,
             user_id=users[0].id,
         )
         item2 = ItemModel(
-            name=f"Item {i + 1}",
+            name=f"Item {2*i + 1}",
             description=f"Test item {i + 1}",
             category_id=categories[i].id,
             user_id=users[1].id,
@@ -111,3 +111,4 @@ def items(categories, users):
         db.session.add(item1)
         db.session.add(item2)
     db.session.commit()
+    return db.session.query(ItemModel).all()

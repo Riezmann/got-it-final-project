@@ -5,7 +5,7 @@ from flask.views import MethodView
 from flask_jwt_extended import create_access_token
 from passlib.hash import pbkdf2_sha256 as sha256
 
-from main import db
+from main import app, db
 from main.commons.exceptions import BadRequest, Unauthorized
 from main.schemas.user import UserSchema
 
@@ -24,10 +24,14 @@ class UserRegister(MethodView):
             email=user_data["email"],
             hashed_password=sha256.hash(user_data["password"]),
         )
-        db.session.add(user)
-        db.session.commit()
+        user.save_to_db()
         access_token = create_access_token(
-            identity=user.id, fresh=True, expires_delta=timedelta(minutes=120)
+            identity=user.id,
+            fresh=True,
+            expires_delta=timedelta(
+                minutes=app.config["JWT_EXPIRATION_MINUTES"],
+                seconds=app.config["JWT_EXPIRATION_SECONDS"],
+            ),
         )
         return jsonify({"access_token": access_token}), 200
 
@@ -38,7 +42,12 @@ class UserLogin(MethodView):
         user = db.session.query(UserModel).filter_by(email=user_data["email"]).first()
         if user and sha256.verify(user_data["password"], user.hashed_password):
             access_token = create_access_token(
-                identity=user.id, fresh=True, expires_delta=timedelta(minutes=120)
+                identity=user.id,
+                fresh=True,
+                expires_delta=timedelta(
+                    minutes=app.config["JWT_EXPIRATION_MINUTES"],
+                    seconds=app.config["JWT_EXPIRATION_SECONDS"],
+                ),
             )
             return {"access_token": access_token}, 200
         else:

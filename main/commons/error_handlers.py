@@ -34,7 +34,7 @@ def register_error_handlers(app):
             logging_method = logger.error
 
         logging_method(
-            message=error.error_message,
+            message=error.error_message.capitalize(),
             data={
                 "error_data": error.error_data,
                 "error_code": error.error_code,

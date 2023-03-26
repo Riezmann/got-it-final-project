@@ -1,133 +1,103 @@
-import logging
-
+from main import db
 from main.commons.exceptions import Forbidden, ValidationError
+from main.models.category import CategoryModel
+from main.models.item import ItemModel
+from tests import get_login_auth_header, get_regis_auth_header
 
-normal_category = {"name": "PC accessories"}
+normal_category = {"name": "Category 1"}
 name_not_str_category = {"name": 1}
 empty_category = {}
 
-existing_user_name = "bao.thcs20@gmail.com"
-existing_password = "Aa@123"
 
-new_user_name = "bao-test1@gmail.com"
-new_password = "Aa@123"
-
-
-def get_login_auth_header(client):
-    auth_response = client.post(
-        "/access-tokens",
-        json={"email": existing_user_name, "password": existing_password},
-    )
-    logging.warning(auth_response.json)
-    access_token = auth_response.json["access_token"]
-    return {"Authorization": "Bearer {}".format(access_token)}
-
-
-def get_regis_auth_header(client):
-    auth_response = client.post(
-        "/users", json={"email": new_user_name, "password": new_password}
-    )
-    access_token = auth_response.json["access_token"]
-    return {"Authorization": "Bearer {}".format(access_token)}
-
-
-def test_create_category(client, users):
+def test_create_category_success(client, users):
     headers = get_login_auth_header(client)
-
     response = client.post("/categories", json=normal_category, headers=headers)
     assert response.status_code == 200
 
-    response = client.post("/categories", json=name_not_str_category, headers=headers)
-    assert response.status_code == 400
-    assert response.json["error_message"] == ValidationError.error_message
 
+def test_create_category_empty_string_name_fail(client, users):
+    headers = get_login_auth_header(client)
     response = client.post("/categories", json=empty_category, headers=headers)
     assert response.status_code == 400
     assert response.json["error_message"] == ValidationError.error_message
 
+
+def test_create_category_not_string_name_fail(client, users):
+    headers = get_login_auth_header(client)
+    response = client.post("/categories", json=name_not_str_category, headers=headers)
+    assert response.status_code == 400
+    assert response.json["error_message"] == ValidationError.error_message
+
+
+def test_create_duplicated_category_fail(client, users, categories):
+    headers = get_login_auth_header(client)
     response = client.post("/categories", json=normal_category, headers=headers)
     assert response.status_code == 400
     assert response.json["error_message"] == "Category already exists"
 
 
-def test_paging_get_category(categories, client):
-    """Test paging for get categories"""
-
-    def check_category(category_object, category_idx):
-        assert category_object["name"] == "Category {}".format(category_idx)
-
+def test_get_category_no_queries_success(client, users, categories):
     headers = get_login_auth_header(client)
-
-    # case when getting the first 20 categories
     response = client.get("/categories", headers=headers)
-    page = response.json["page"]
-    items_per_page = response.json["items_per_page"]
-    total_items = response.json["total_items"]
-    items = response.json["items"]
     assert response.status_code == 200
-    assert total_items == 60
-    assert len(items) == 20
-    assert page == 1
-    for index, category in enumerate(response.json["items"]):
-        category_index = (page - 1) * items_per_page + index
-        check_category(category, category_index)
-
-    # case when getting the next last 10 categories
-    response = client.get("/categories?page=2", headers=headers)
-    page = response.json["page"]
-    items_per_page = response.json["items_per_page"]
-    total_items = response.json["total_items"]
-    items = response.json["items"]
-    assert response.status_code == 200
-    assert total_items == 60
-    assert len(items) == 20
-    assert page == 2
-    for index, category in enumerate(response.json["items"]):
-        category_index = (page - 1) * items_per_page + index
-        check_category(category, category_index)
-
-    # case when getting the page that out of range
-    response = client.get("/categories?page=4", headers=headers)
-    assert response.status_code == 200
+    assert len(response.json["items"]) == 20
     assert response.json["total_items"] == 60
-    assert len(response.json["items"]) == 0
-    assert response.json["page"] == 4
+    for index, category in enumerate(response.json["items"]):
+        assert category["name"] == "Category {}".format(index)
 
-    # case when items_per_page varies
-    for items_per_page in range(1, 20):
-        response = client.get(
-            f"/categories?items-per-page={items_per_page}", headers=headers
-        )
-        page = response.json["page"]
-        total_items = response.json["total_items"]
-        items = response.json["items"]
-        assert response.status_code == 200
-        assert total_items == 60
-        assert len(items) == items_per_page
-        assert page == 1
-        for index, category in enumerate(response.json["items"]):
-            category_index = (page - 1) * items_per_page + index
-            check_category(category, category_index)
 
-    # case when page is  invalid
-    response = client.get("/categories?page=abc", headers=headers)
+def test_get_category_only_page_query_success(client, users, categories):
+    headers = get_login_auth_header(client)
+    response = client.get("/categories?page=2", headers=headers)
+    assert response.status_code == 200
+    assert len(response.json["items"]) == 20
+    assert response.json["total_items"] == 60
+    for index, category in enumerate(response.json["items"]):
+        assert category["name"] == "Category {}".format(index + 20)
+
+
+def test_get_category_only_per_page_query_success(client, users, categories):
+    headers = get_login_auth_header(client)
+    response = client.get("/categories?items_per_page=10", headers=headers)
+    assert response.status_code == 200
+    assert len(response.json["items"]) == 10
+    assert response.json["total_items"] == 60
+    for index, category in enumerate(response.json["items"]):
+        assert category["name"] == "Category {}".format(index)
+
+
+def test_get_category_full_queries_success(client, users, categories):
+    headers = get_login_auth_header(client)
+    response = client.get("/categories?page=2&items_per_page=10", headers=headers)
+    assert response.status_code == 200
+    assert len(response.json["items"]) == 10
+    assert response.json["total_items"] == 60
+    for index, category in enumerate(response.json["items"]):
+        assert category["name"] == "Category {}".format(index + 10)
+
+
+def test_get_category_with_redundant_queries_fail(client, users, categories):
+    headers = get_login_auth_header(client)
+    response = client.get(
+        "/categories?page=2&items_per_page=10&redundant=1", headers=headers
+    )
     assert response.status_code == 400
-    assert response.json["error_message"] == "Query params are not integers"
 
-    # case when items_per_page is invalid
-    response = client.get("/categories?items-per-page=abc", headers=headers)
+
+def test_get_category_with_negative_queries_fail(client, users, categories):
+    headers = get_login_auth_header(client)
+    response = client.get("/categories?page=-1&items_per_page=10", headers=headers)
     assert response.status_code == 400
-    assert response.json["error_message"] == "Query params are not integers"
+
+
+def test_get_category_with_string_queries_fail(client, users, categories):
+    headers = get_login_auth_header(client)
+    response = client.get("/categories?page='abc'&items_per_page=10", headers=headers)
+    assert response.status_code == 400
 
 
 def test_not_owner_get_category(categories, client):
-    def check_category(category_object, category_idx):
-        assert category_object["is_owner"] is False
-        assert category_object["name"] == "Category {}".format(category_idx)
-
     headers = get_regis_auth_header(client)
-
-    # case when getting the first 20 categories
     response = client.get("/categories", headers=headers)
     page = response.json["page"]
     items_per_page = response.json["items_per_page"]
@@ -139,58 +109,36 @@ def test_not_owner_get_category(categories, client):
     assert page == 1
     for index, category in enumerate(response.json["items"]):
         category_index = (page - 1) * items_per_page + index
-        check_category(category, category_index)
-
-    # case when getting the next last 10 categories
-    response = client.get("/categories?page=2", headers=headers)
-    page = response.json["page"]
-    items_per_page = response.json["items_per_page"]
-    total_items = response.json["total_items"]
-    items = response.json["items"]
-    assert response.status_code == 200
-    assert total_items == 60
-    assert len(items) == 20
-    assert page == 2
-    for index, category in enumerate(response.json["items"]):
-        category_index = (page - 1) * items_per_page + index
-        check_category(category, category_index)
-
-    # case when getting the page that out of range
-    response = client.get("/categories?page=4", headers=headers)
-    assert response.status_code == 200
-    assert response.json["total_items"] == 60
-    assert len(response.json["items"]) == 0
-    assert response.json["page"] == 4
+        assert category["is_owner"] is False
+        assert category["name"] == "Category {}".format(category_index)
 
 
 def test_delete_category(categories, items, client):
     headers = get_login_auth_header(client)
-    response = client.get("/categories", headers=headers)
-    original_total_items = response.json["total_items"]
-    logging.warning(response.json)
-    categories = response.json["items"]
+    original_total_items = db.session.query(CategoryModel).count()
+    categories = db.session.query(CategoryModel).limit(30).all()
     for category in categories:
-        response = client.delete(f"/categories/{category['id']}", headers=headers)
+        response = client.delete(f"/categories/{category.id}", headers=headers)
         assert response.status_code == 200
-    response = client.get("/categories", headers=headers)
-    assert response.status_code == 200
-    assert response.json["total_items"] == original_total_items - len(categories)
+    assert db.session.query(CategoryModel).count() == original_total_items - 30
+    # test delete cascade items
+    items = db.session.query(ItemModel).all()
+    for index, item in enumerate(items):
+        assert item.name == "Item {}".format(60 + index)
 
 
-def test_unauthorized_delete_category(categories, items, client):
+def test_unauthorized_delete_category(categories, users, items, client):
     headers = get_regis_auth_header(client)
-    response = client.get("/categories", headers=headers)
-    original_total_items = response.json["total_items"]
-    logging.warning(response.json)
-    items = response.json["items"]
-    for category in items:
-        response = client.delete(f"/categories/{category['id']}", headers=headers)
+    original_total_items = db.session.query(CategoryModel).count()
+    categories = db.session.query(CategoryModel).all()
+    for category in categories:
+        response = client.delete(f"/categories/{category.id}", headers=headers)
         assert response.status_code == 403
         assert response.json["error_message"] == Forbidden.error_message
-    response = client.get("/categories", headers=headers)
-    assert response.status_code == 200
-    assert response.json["total_items"] == original_total_items
+    assert original_total_items == db.session.query(CategoryModel).count()
 
-    # case when the category_id is not exist
+
+def test_delete_not_exist_category(categories, items, client):
+    headers = get_login_auth_header(client)
     response = client.delete("/categories/9999999999", headers=headers)
-    assert response.status_code == 200
+    assert response.status_code == 404

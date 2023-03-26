@@ -1,9 +1,12 @@
-from marshmallow import fields, validate
+from marshmallow import RAISE, fields, validate
 
 from .base import BaseSchema
 
 
 class PagingSchema(BaseSchema):
+    class Meta:
+        unknown = RAISE
+
     page = fields.Integer(
         validate=[validate.Range(min=1, error="page must be a positive number")],
         load_default=1,
