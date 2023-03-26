@@ -8,7 +8,7 @@ from main.libs.exist_checker import check_exist
 from main.libs.log import ServiceLogger
 from main.models.category import CategoryModel
 from main.models.item import ItemModel
-from main.schemas.item import ItemSchema
+from main.schemas.item import PagingItemSchema, RequestItemSchema, ResponseItemSchema
 from main.schemas.paging import PagingSchema
 
 blp = Blueprint("Items", __name__)
@@ -16,12 +16,11 @@ blp = Blueprint("Items", __name__)
 
 class ItemsOperations(MethodView):
     @required_jwt()
-    @request_data(ItemSchema)
+    @request_data(RequestItemSchema)
     def post(self, user_id, item_data):
-        check_exist(CategoryModel, item_data["category_id"])
-        item = ItemModel.query.filter(ItemModel.name == item_data["name"]).first()
-        if item:
-            return BadRequest(error_message="Item already exists").to_response()
+        check_exist(CategoryModel, error_out=True, id=item_data["category_id"])
+        if check_exist(ItemModel, name=item_data["name"]):
+            raise BadRequest(error_message="Item already exists")
         item = ItemModel(
             name=item_data["name"],
             description=item_data["description"],
@@ -31,7 +30,7 @@ class ItemsOperations(MethodView):
         db.session.add(item)
         db.session.commit()
         item.is_owner = True
-        return ItemSchema().dump(item)
+        return ResponseItemSchema().dump(item)
 
     @required_jwt()
     @request_data(PagingSchema)
@@ -42,21 +41,20 @@ class ItemsOperations(MethodView):
         item_query = ItemModel.query
 
         if category_id:
-            if not db.session.get(CategoryModel, category_id):
-                return BadRequest(error_message="Category does not exist").to_response()
+            check_exist(CategoryModel, error_out=True, id=category_id)
             item_query = item_query.filter(ItemModel.category_id == category_id)
 
         items = item_query.paginate(page=page, per_page=items_per_page, error_out=False)
         for item in items:
             item.is_owner = item.user_id == user_id
 
-        items = ItemSchema(many=True).dump(items)
-        return {
-            "page": page,
-            "items_per_page": items_per_page,
-            "items": items,
-            "total_items": item_query.count(),
-        }
+        paging = PagingItemSchema(
+            page=page,
+            items_per_page=items_per_page,
+            items=items,
+            total_items=CategoryModel.query.count(),
+        )
+        return PagingItemSchema().jsonify(paging)
 
 
 class ItemOperations(MethodView):
@@ -64,35 +62,36 @@ class ItemOperations(MethodView):
     def get(self, user_id, item_id):
         item = db.session.get(ItemModel, item_id)
         if not item:
-            return NotFound(error_message="Item not found").to_response()
+            raise NotFound(error_message="Item not found")
         item.is_owner = item.user_id == user_id
-        return ItemSchema().dump(item)
+        return ResponseItemSchema().dump(item)
 
     @required_jwt()
-    @request_data(ItemSchema)
+    @request_data(RequestItemSchema)
     def put(self, user_id, item_data, item_id):
         ServiceLogger(name="ItemOperations").info(message=f"item id: {item_id}")
         check_exist(CategoryModel, item_data["category_id"])
         item = db.session.get(ItemModel, item_id)
         if item:
             if item.user_id != user_id:
-                return Forbidden().to_response()
+                raise Forbidden()
             item.name = item_data["name"]
             item.description = item_data["description"]
             item.category_id = item_data["category_id"]
             item.user_id = user_id
         else:
-            return NotFound(error_message="Item not found").to_response()
+            raise NotFound(error_message="Item not found")
         db.session.commit()
-        return ItemSchema().dump(item)
+        item.is_owner = True
+        return ResponseItemSchema().dump(item)
 
     @required_jwt()
     def delete(self, user_id, item_id):
         item = db.session.get(ItemModel, item_id)
         if not item:
-            return NotFound(error_message="Item not found").to_response()
+            raise NotFound(error_message="Item not found")
         if user_id != item.user_id:
-            return Forbidden().to_response()
+            raise Forbidden()
         db.session.delete(item)
         db.session.commit()
         return {}

@@ -2,8 +2,10 @@ from main import db
 from main.commons.exceptions import BadRequest
 
 
-def check_exist(model, unique_prop):
-    obj = db.session.get(model, unique_prop)
+def check_exist(model, error_out=False, **kwargs):
+    obj = db.session.query(model).filter_by(**kwargs).first()
     if obj:
         return obj
-    raise BadRequest(error_message=f"{model.__tablename__} does not exist")
+    if error_out:
+        raise BadRequest(error_message=f"{model.__tablename__} does not exist")
+    return False

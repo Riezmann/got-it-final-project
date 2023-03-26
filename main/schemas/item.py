@@ -1,10 +1,9 @@
 from marshmallow import fields, post_load, validate
 
-from .base import BaseSchema
+from .base import BaseSchema, PaginationSchema
 
 
-class ItemSchema(BaseSchema):
-    id = fields.Integer(dump_only=True)
+class RequestItemSchema(BaseSchema):
     name = fields.String(
         required=True,
         validate=[
@@ -22,10 +21,25 @@ class ItemSchema(BaseSchema):
         ],
     )
     category_id = fields.Integer(required=True, strict=True)
-    is_owner = fields.Boolean(dump_only=True)
 
     @post_load
-    def remove_whitespace(self, data, **kwargs):
+    def remove_whitespace(self, data, **_):
         data["name"] = data["name"].strip()
         data["description"] = data["description"].strip()
         return data
+
+
+class ResponseItemSchema(RequestItemSchema):
+    id = fields.Integer(required=True, dump_only=True, strict=True)
+    is_owner = fields.Boolean(required=True, dump_only=True)
+
+
+class PagingItemSchema(PaginationSchema):
+    def __init__(self, **kwargs):
+        super().__init__()
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    items = fields.List(
+        fields.Nested(ResponseItemSchema()), required=True, dump_only=True
+    )
