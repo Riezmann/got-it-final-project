@@ -1,9 +1,12 @@
-from marshmallow import fields, post_load, validate
+from marshmallow import RAISE, fields, post_load, validate
 
 from .base import BaseSchema, PaginationSchema
 
 
 class RequestItemSchema(BaseSchema):
+    class Meta:
+        unknown = RAISE
+
     name = fields.String(
         required=True,
         validate=[
@@ -28,6 +31,28 @@ class RequestItemSchema(BaseSchema):
         data["name"] = data["name"].strip()
         data["description"] = data["description"].strip()
         return data
+
+
+class PutItemSchema(BaseSchema):
+    class Meta:
+        unknown = RAISE
+
+    name = fields.String(
+        validate=[
+            validate.Length(
+                min=1, max=100, error="Category name must not " "exceed 100 characters."
+            )
+        ],
+    )
+    description = fields.String(
+        validate=[
+            validate.Length(
+                max=100, error="Category name must not" "exceed 100 characters."
+            ),
+            validate.Length(min=1, error="Category name must not be empty."),
+        ],
+    )
+    category_id = fields.Integer(strict=True)
 
 
 class ResponseItemSchema(RequestItemSchema):

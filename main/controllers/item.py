@@ -8,7 +8,12 @@ from main.libs.exist_checker import check_exist
 from main.libs.log import ServiceLogger
 from main.models.category import CategoryModel
 from main.models.item import ItemModel
-from main.schemas.item import PagingItemSchema, RequestItemSchema, ResponseItemSchema
+from main.schemas.item import (
+    PagingItemSchema,
+    PutItemSchema,
+    RequestItemSchema,
+    ResponseItemSchema,
+)
 from main.schemas.paging import PagingSchema
 
 blp = Blueprint("Items", __name__)
@@ -67,18 +72,19 @@ class ItemOperations(MethodView):
         return ResponseItemSchema().dump(item)
 
     @required_jwt()
-    @request_data(RequestItemSchema)
+    @request_data(PutItemSchema)
     def put(self, user_id, item_data, item_id):
         ServiceLogger(name="ItemOperations").info(message=f"item id: {item_id}")
-        check_exist(CategoryModel, item_data["category_id"])
+        category_id = item_data.get("category_id")
+        if category_id:
+            check_exist(CategoryModel, item_data["category_id"])
         item = db.session.get(ItemModel, item_id)
         if item:
             if item.user_id != user_id:
                 raise Forbidden()
-            item.name = item_data["name"]
-            item.description = item_data["description"]
-            item.category_id = item_data["category_id"]
-            item.user_id = user_id
+            item.name = item_data.get("name") or item.name
+            item.description = item_data.get("description") or item.description
+            item.category_id = category_id or item.category_id
         else:
             raise NotFound(error_message="Item not found.")
         db.session.commit()

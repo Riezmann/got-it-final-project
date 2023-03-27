@@ -1,9 +1,12 @@
-from marshmallow import fields, validate
+from marshmallow import RAISE, fields, validate
 
 from .base import BaseSchema
 
 
 class UserSchema(BaseSchema):
+    class Meta:
+        unknown = RAISE
+
     id = fields.Integer(dump_only=True)
     email = fields.Email(
         required=True,
@@ -20,7 +23,7 @@ class UserSchema(BaseSchema):
             validate.Length(
                 min=6,
                 max=255,
-                error="Password must be between 6 and 255 characters long",
+                error="Password must be between 6 and 32 characters long.",
             ),
             validate.Regexp(
                 regex=r"^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]",

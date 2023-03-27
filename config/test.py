@@ -6,3 +6,4 @@ class Config(_Config):
 
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:giabao0120@127.0.0.1/catalog_test"
     JWT_EXPIRATION_MINUTES = 1
+    JWT_EXPIRATION_SECONDS = 0

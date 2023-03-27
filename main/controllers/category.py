@@ -50,6 +50,14 @@ class CategoriesOperations(MethodView):
 
 class CategoryOperations(MethodView):
     @required_jwt()
+    def get(self, user_id, category_id):
+        category = db.session.get(CategoryModel, category_id)
+        if not category:
+            raise NotFound(error_message="Category not found.")
+        category.is_owner = category.user_id == user_id
+        return ResponseCategorySchema().jsonify(category)
+
+    @required_jwt()
     def delete(self, user_id, category_id):
         category = db.session.get(CategoryModel, category_id)
         if not category:

@@ -1,9 +1,12 @@
-from marshmallow import fields, post_load, validate
+from marshmallow import RAISE, fields, post_load, validate
 
 from main.schemas.base import BaseSchema, PaginationSchema
 
 
 class RequestCategorySchema(BaseSchema):
+    class Meta:
+        unknown = RAISE
+
     name = fields.String(
         required=True,
         validate=[
@@ -22,7 +25,7 @@ class RequestCategorySchema(BaseSchema):
 
 class ResponseCategorySchema(RequestCategorySchema):
     id = fields.Integer(required=True, dump_only=True, strict=True)
-    is_owner = fields.Boolean(required=True, dump_only=True)
+    is_owner = fields.Boolean(required=True)
 
 
 class PagingCategorySchema(PaginationSchema):

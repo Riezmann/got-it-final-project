@@ -36,7 +36,7 @@ def test_create_duplicated_category_fail(client, users, categories):
     assert response.json["error_message"] == "Category already exists."
 
 
-def test_get_category_no_queries_success(client, users, categories):
+def test_get_categories_no_queries_success(client, users, categories):
     headers = get_login_auth_header(client)
     response = client.get("/categories", headers=headers)
     assert response.status_code == 200
@@ -46,7 +46,7 @@ def test_get_category_no_queries_success(client, users, categories):
         assert category["name"] == "Category {}".format(index)
 
 
-def test_get_category_only_page_query_success(client, users, categories):
+def test_get_categories_only_page_query_success(client, users, categories):
     headers = get_login_auth_header(client)
     response = client.get("/categories?page=2", headers=headers)
     assert response.status_code == 200
@@ -56,7 +56,7 @@ def test_get_category_only_page_query_success(client, users, categories):
         assert category["name"] == "Category {}".format(index + 20)
 
 
-def test_get_category_only_per_page_query_success(client, users, categories):
+def test_get_categories_only_per_page_query_success(client, users, categories):
     headers = get_login_auth_header(client)
     response = client.get("/categories?items_per_page=10", headers=headers)
     assert response.status_code == 200
@@ -66,7 +66,7 @@ def test_get_category_only_per_page_query_success(client, users, categories):
         assert category["name"] == "Category {}".format(index)
 
 
-def test_get_category_full_queries_success(client, users, categories):
+def test_get_categories_full_queries_success(client, users, categories):
     headers = get_login_auth_header(client)
     response = client.get("/categories?page=2&items_per_page=10", headers=headers)
     assert response.status_code == 200
@@ -76,7 +76,7 @@ def test_get_category_full_queries_success(client, users, categories):
         assert category["name"] == "Category {}".format(index + 10)
 
 
-def test_get_category_with_redundant_queries_fail(client, users, categories):
+def test_get_categories_with_redundant_queries_fail(client, users, categories):
     headers = get_login_auth_header(client)
     response = client.get(
         "/categories?page=2&items_per_page=10&redundant=1", headers=headers
@@ -84,19 +84,19 @@ def test_get_category_with_redundant_queries_fail(client, users, categories):
     assert response.status_code == 400
 
 
-def test_get_category_with_negative_queries_fail(client, users, categories):
+def test_get_categories_with_negative_queries_fail(client, users, categories):
     headers = get_login_auth_header(client)
     response = client.get("/categories?page=-1&items_per_page=10", headers=headers)
     assert response.status_code == 400
 
 
-def test_get_category_with_string_queries_fail(client, users, categories):
+def test_get_categories_with_string_queries_fail(client, users, categories):
     headers = get_login_auth_header(client)
     response = client.get("/categories?page='abc'&items_per_page=10", headers=headers)
     assert response.status_code == 400
 
 
-def test_not_owner_get_category(categories, client):
+def test_not_owner_get_categories(categories, client):
     headers = get_regis_auth_header(client)
     response = client.get("/categories", headers=headers)
     page = response.json["page"]
@@ -111,6 +111,29 @@ def test_not_owner_get_category(categories, client):
         category_index = (page - 1) * items_per_page + index
         assert category["is_owner"] is False
         assert category["name"] == "Category {}".format(category_index)
+
+
+def test_owner_get_category_success(client, users, categories, items):
+    headers = get_login_auth_header(client)
+    response = client.get(f"/categories/{categories[0].id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json["is_owner"] is True
+    assert response.json["name"] == "Category 0"
+
+
+def test_not_owner_get_category_success(client, users, categories, items):
+    headers = get_regis_auth_header(client)
+    response = client.get(f"/categories/{categories[0].id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json["is_owner"] is False
+    assert response.json["name"] == "Category 0"
+
+
+def test_get_not_exist_category(client, users, categories, items):
+    headers = get_login_auth_header(client)
+    response = client.get("/categories/99999", headers=headers)
+    assert response.status_code == 404
+    assert response.json["error_message"] == "Category not found."
 
 
 def test_delete_category(categories, items, client):
