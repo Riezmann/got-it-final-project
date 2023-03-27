@@ -24,16 +24,13 @@ def request_data(schema):
     return decorator
 
 
-def required_jwt():
+def required_jwt(func):
     """Decorator to ensure that the user is logged in before accessing the endpoint"""
 
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            verify_jwt_in_request()
-            user_id = get_jwt_identity()
-            # ensure sync is used to ensure the synchronous execution of the function
-            return current_app.ensure_sync(func)(*args, user_id, **kwargs)
+    def wrapper(*args, **kwargs):
+        verify_jwt_in_request()
+        user_id = get_jwt_identity()
+        # ensure sync is used to ensure the synchronous execution of the function
+        return current_app.ensure_sync(func)(*args, **kwargs, user_id=user_id)
 
-        return wrapper
-
-    return decorator
+    return wrapper

@@ -1,5 +1,6 @@
-from marshmallow import RAISE, fields, post_load, validate
+from marshmallow import RAISE, fields, post_load
 
+from main.schemas import validate_length
 from main.schemas.base import BaseSchema, PaginationSchema
 
 
@@ -9,12 +10,7 @@ class RequestCategorySchema(BaseSchema):
 
     name = fields.String(
         required=True,
-        validate=[
-            validate.Length(
-                max=100, error="Category name must not " "exceed 100 characters."
-            ),
-            validate.Length(min=1, error="Category name must not be empty."),
-        ],
+        validate=validate_length(target="Category name", min_len=1, max_len=100),
     )
 
     @post_load

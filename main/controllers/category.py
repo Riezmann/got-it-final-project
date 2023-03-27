@@ -17,9 +17,9 @@ blp = Blueprint("Categories", __name__)
 
 
 class CategoriesOperations(MethodView):
-    @required_jwt()
+    @required_jwt
     @request_data(RequestCategorySchema)
-    def post(self, user_id, category_data):
+    def post(self, category_data, user_id):
         if check_exist(CategoryModel, name=category_data["name"]):
             raise BadRequest(error_message="Category already exists.")
         category = CategoryModel(name=category_data["name"])
@@ -28,9 +28,9 @@ class CategoriesOperations(MethodView):
         category.is_owner = True
         return ResponseCategorySchema().jsonify(category)
 
-    @required_jwt()
+    @required_jwt
     @request_data(PagingSchema)
-    def get(self, user_id, queries_data):
+    def get(self, queries_data, user_id):
         page = queries_data["page"]
         items_per_page = queries_data["items_per_page"]
 
@@ -49,16 +49,16 @@ class CategoriesOperations(MethodView):
 
 
 class CategoryOperations(MethodView):
-    @required_jwt()
-    def get(self, user_id, category_id):
+    @required_jwt
+    def get(self, category_id, user_id):
         category = db.session.get(CategoryModel, category_id)
         if not category:
             raise NotFound(error_message="Category not found.")
         category.is_owner = category.user_id == user_id
         return ResponseCategorySchema().jsonify(category)
 
-    @required_jwt()
-    def delete(self, user_id, category_id):
+    @required_jwt
+    def delete(self, category_id, user_id):
         category = db.session.get(CategoryModel, category_id)
         if not category:
             raise NotFound(error_message="Category not found.")

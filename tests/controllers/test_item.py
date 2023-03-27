@@ -20,19 +20,19 @@ def test_create_item_success(client, categories, users):
     assert response.status_code == 200
 
 
-def test_create_item_empty_string_name_fail(client, categories, users):
+def test_create_item_fail_empty_string_name(client, categories, users):
     headers = get_login_auth_header(client)
     response = client.post("/items", json=empty_item, headers=headers)
     assert response.status_code == 400
 
 
-def test_create_item_not_string_name_fail(client, categories, users):
+def test_create_item_fail_not_string_name(client, categories, users):
     headers = get_login_auth_header(client)
     response = client.post("/items", json=name_not_str_item, headers=headers)
     assert response.status_code == 400
 
 
-def test_create_duplicated_item_fail(client, users, categories, items):
+def test_create_item_fail_duplicated_name(client, users, categories, items):
     headers = get_login_auth_header(client)
     normal_item["category_id"] = categories[0].id
     response = client.post("/items", json=normal_item, headers=headers)
@@ -40,7 +40,7 @@ def test_create_duplicated_item_fail(client, users, categories, items):
     assert response.json["error_message"] == "Item already exists."
 
 
-def test_create_item_with_category_not_exist_fail(client, users, categories, items):
+def test_create_item_fail_with_category_not_exist(client, users, categories, items):
     headers = get_login_auth_header(client)
     response = client.post("/items", json=category_not_exist_item, headers=headers)
     assert response.status_code == 400
@@ -72,7 +72,7 @@ def validate_all_items(current_response, current_page, current_items_per_page):
         assert current_item["name"] == "Item {}".format(item_idx)
 
 
-def test_get_items_no_queries_success(users, items, categories, client):
+def test_get_items_success_no_queries(users, items, categories, client):
     headers = get_login_auth_header(client)
     response = client.get("/items", headers=headers)
     page = response.json["page"]
@@ -87,7 +87,7 @@ def test_get_items_no_queries_success(users, items, categories, client):
         assert current_item["name"] == "Item {}".format(item_idx)
 
 
-def test_get_items_only_page_query_success(users, items, categories, client):
+def test_get_items_success_only_page_query(users, items, categories, client):
     headers = get_login_auth_header(client)
     response = client.get("/items?page=2", headers=headers)
     page = response.json["page"]
@@ -102,7 +102,7 @@ def test_get_items_only_page_query_success(users, items, categories, client):
         assert current_item["name"] == "Item {}".format(item_idx)
 
 
-def test_get_items_only_per_page_query_success(users, items, categories, client):
+def test_get_items_success_only_per_page_query(users, items, categories, client):
     headers = get_login_auth_header(client)
     response = client.get("/items?items_per_page=5", headers=headers)
     items_per_page = response.json["items_per_page"]
@@ -117,7 +117,7 @@ def test_get_items_only_per_page_query_success(users, items, categories, client)
         assert current_item["name"] == "Item {}".format(item_idx)
 
 
-def test_get_items_only_category_id_query_success(users, items, categories, client):
+def test_get_items_success_only_category_id_query(users, items, categories, client):
     headers = get_login_auth_header(client)
     response = client.get(f"/items?category_id={categories[0].id}", headers=headers)
     assert response.status_code == 200
@@ -139,7 +139,7 @@ def test_get_items_only_non_exist_category_id_query_fail(
     assert response.json["error_message"] == "Category does not exist."
 
 
-def test_get_items_full_queries_success(users, items, categories, client):
+def test_get_items_success_full_queries(users, items, categories, client):
     headers = get_login_auth_header(client)
     response = client.get(
         f"/items?page=2&items_per_page=1&category_id={categories[0].id}",
@@ -154,13 +154,13 @@ def test_get_items_full_queries_success(users, items, categories, client):
     assert response.json["items"][0]["name"] == "Item 1"
 
 
-def test_get_items_string_page_fail(users, items, categories, client):
+def test_get_items_fail_string_page(users, items, categories, client):
     headers = get_login_auth_header(client)
     response = client.get("/items?page=abc", headers=headers)
     assert response.status_code == 400
 
 
-def test_get_item_by_id_success(users, items, categories, client):
+def test_get_item_success_by_id(users, items, categories, client):
     headers = get_login_auth_header(client)
     first_item = items[0]
     response = client.get(f"/items/{first_item.id}", headers=headers)
@@ -169,14 +169,14 @@ def test_get_item_by_id_success(users, items, categories, client):
     assert response.json["name"] == "Item 0"
 
 
-def test_get_item_by_id_not_exist_fail(users, items, categories, client):
+def test_get_item_fail_id_not_exist(users, items, categories, client):
     headers = get_login_auth_header(client)
     response = client.get("/items/999", headers=headers)
     assert response.status_code == 404
     assert response.json["error_message"] == "Item not found."
 
 
-def test_unauthorized_get_items_success(items, client):
+def test_get_items_success_unauthorized(items, client):
     headers = get_regis_auth_header(client)
 
     # case when getting the first 20 items
@@ -193,7 +193,7 @@ def test_unauthorized_get_items_success(items, client):
         assert current_item["name"] == "Item {}".format(item_idx)
 
 
-def test_unauthorized_get_item_by_id_success(items, client):
+def test_get_item_by_id_success_unauthorized(items, client):
     headers = get_regis_auth_header(client)
     response = client.get("/items", headers=headers)
     items = response.json["items"]
@@ -204,14 +204,14 @@ def test_unauthorized_get_item_by_id_success(items, client):
         assert response.json["is_owner"] is False
 
 
-def test_unauthorized_get_item_by_id_fail(items, client):
+def test_get_item_by_id_fail_unauthorized(items, client):
     headers = get_regis_auth_header(client)
     response = client.get("/items/999", headers=headers)
     assert response.status_code == 404
     assert response.json["error_message"] == "Item not found."
 
 
-def test_authorized_update_item_success(items, client, categories):
+def test_update_item_success_authorized(items, client, categories):
     headers = get_login_auth_header(client)
     for index, item in enumerate(items):
         if index % 2 != 0:  # only update the items that belong to the owner
@@ -235,21 +235,29 @@ def test_authorized_update_item_success(items, client, categories):
         assert item.name == f"New name Item {item.id}"
 
 
-def test_update_item_causes_duplicating_name_fail(items, client, categories):
+def test_update_item_fail_duplicated_name(items, client, categories):
     headers = get_login_auth_header(client)
     response = client.put(
         f"/items/{items[0].id}",
         json={
             "name": "Item 1",
-            "description": "New description",
-            "category_id": categories[0].id,
         },
         headers=headers,
     )
-    assert response.status_code == 500
+    assert response.status_code == 400
 
 
-def test_update_not_exist_item_fail(items, client, categories):
+def test_update_item_fail_empty_body(items, client, categories):
+    headers = get_login_auth_header(client)
+    response = client.put(
+        f"/items/{items[0].id}",
+        json={},
+        headers=headers,
+    )
+    assert response.status_code == 405
+
+
+def test_update_item_fail_not_exist(items, client, categories):
     headers = get_login_auth_header(client)
     response = client.put(
         "/items/99999",
@@ -264,7 +272,7 @@ def test_update_not_exist_item_fail(items, client, categories):
     assert response.json["error_message"] == "Item not found."
 
 
-def test_unauthorized_update_item_fail(items, client):
+def test_update_item_fail_unauthorized(items, client):
     headers = get_regis_auth_header(client)
     for index, item in enumerate(items):
         response = client.put(
@@ -280,7 +288,7 @@ def test_unauthorized_update_item_fail(items, client):
         assert response.json["error_message"] == Forbidden.error_message
 
 
-def test_authorized_delete_item_success(items, client):
+def test_delete_item_success_authorized(items, client):
     headers = get_login_auth_header(client)
     original_total_items = len(items)
     for index, item in enumerate(items):
@@ -291,14 +299,14 @@ def test_authorized_delete_item_success(items, client):
     assert db.session.query(ItemModel).count() == original_total_items - 60
 
 
-def test_delete_not_exist_item_fail(items, client):
+def test_delete_item_fail_not_exist(items, client):
     headers = get_login_auth_header(client)
     response = client.delete("/items/99999", headers=headers)
     assert response.status_code == 404
     assert response.json["error_message"] == "Item not found."
 
 
-def test_unauthorized_delete_item_fail(items, client):
+def test_delete_item_fail_unauthorized(items, client):
     headers = get_regis_auth_header(client)
     original_total_items = len(items)
     for item in items:

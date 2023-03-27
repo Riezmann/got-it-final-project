@@ -4,7 +4,7 @@ from main import app
 from tests import get_login_auth_header
 
 
-def test_expired_jwt_fail(client, users, categories, items):
+def test_jwt_fail_expired(client, users, categories, items):
     app.config["JWT_EXPIRATION_MINUTES"] = 0
     app.config["JWT_EXPIRATION_SECONDS"] = 1
     headers = get_login_auth_header(client)
@@ -14,7 +14,7 @@ def test_expired_jwt_fail(client, users, categories, items):
     assert response.json["error_message"] == "Token has expired"
 
 
-def test_invalid_jwt_fail(client, users, items):
+def test_jwt_fail_invalid(client, users, items):
     app.config["JWT_EXPIRATION_MINUTES"] = 1
     app.config["JWT_EXPIRATION_SECONDS"] = 0
     headers = {"Authorization": "Bearer This is an invalid token"}
@@ -23,7 +23,7 @@ def test_invalid_jwt_fail(client, users, items):
     assert response.json["error_message"] == "Invalid token"
 
 
-def test_missing_jwt_fail(client, users, items):
+def test_jwt_fail_missing(client, users, items):
     app.config["JWT_EXPIRATION_MINUTES"] = 1
     app.config["JWT_EXPIRATION_SECONDS"] = 0
     headers = {"Authorization": ""}
@@ -32,7 +32,7 @@ def test_missing_jwt_fail(client, users, items):
     assert response.json["error_message"] == "Missing Authorization Header"
 
 
-def test_random_authorization_header_jwt_fail(client, users, items):
+def test_jwt_fail_random_authorization_header(client, users, items):
     app.config["JWT_EXPIRATION_MINUTES"] = 1
     app.config["JWT_EXPIRATION_SECONDS"] = 0
     headers = {"Authorization": "This is a very random JWT"}

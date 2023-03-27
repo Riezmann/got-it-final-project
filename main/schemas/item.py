@@ -1,5 +1,7 @@
-from marshmallow import RAISE, fields, post_load, validate
+from marshmallow import RAISE, fields, post_load, pre_load
 
+from ..commons.exceptions import MethodNotAllowed
+from . import validate_length
 from .base import BaseSchema, PaginationSchema
 
 
@@ -9,20 +11,11 @@ class RequestItemSchema(BaseSchema):
 
     name = fields.String(
         required=True,
-        validate=[
-            validate.Length(
-                min=1, max=100, error="Category name must not " "exceed 100 characters."
-            )
-        ],
+        validate=validate_length(target="Item name", min_len=1, max_len=100),
     )
     description = fields.String(
         required=True,
-        validate=[
-            validate.Length(
-                max=100, error="Category name must not" "exceed 100 characters."
-            ),
-            validate.Length(min=1, error="Category name must not be empty."),
-        ],
+        validate=validate_length(target="Item description", min_len=1, max_len=300),
     )
     category_id = fields.Integer(required=True, strict=True)
 
@@ -33,26 +26,31 @@ class RequestItemSchema(BaseSchema):
         return data
 
 
-class PutItemSchema(BaseSchema):
+class UpdateItemSchema(BaseSchema):
     class Meta:
         unknown = RAISE
 
     name = fields.String(
-        validate=[
-            validate.Length(
-                min=1, max=100, error="Category name must not " "exceed 100 characters."
-            )
-        ],
+        validate=validate_length(target="Item name", min_len=1, max_len=100),
     )
     description = fields.String(
-        validate=[
-            validate.Length(
-                max=100, error="Category name must not" "exceed 100 characters."
-            ),
-            validate.Length(min=1, error="Category name must not be empty."),
-        ],
+        validate=validate_length(target="Item description", min_len=1, max_len=300),
     )
     category_id = fields.Integer(strict=True)
+
+    @pre_load
+    def check_empty_request(self, data, **_):
+        if not data:
+            raise MethodNotAllowed(error_message="Empty update request is not allowed")
+        return data
+
+    @post_load
+    def remove_whitespace(self, data, **_):
+        if data.get("name"):
+            data["name"] = data["name"].strip()
+        if data.get("description"):
+            data["description"] = data["description"].strip()
+        return data
 
 
 class ResponseItemSchema(RequestItemSchema):
