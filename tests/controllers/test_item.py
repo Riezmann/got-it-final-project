@@ -37,14 +37,14 @@ def test_create_duplicated_item_fail(client, users, categories, items):
     normal_item["category_id"] = categories[0].id
     response = client.post("/items", json=normal_item, headers=headers)
     assert response.status_code == 400
-    assert response.json["error_message"] == "Item already exists"
+    assert response.json["error_message"] == "Item already exists."
 
 
 def test_create_item_with_category_not_exist_fail(client, users, categories, items):
     headers = get_login_auth_header(client)
     response = client.post("/items", json=category_not_exist_item, headers=headers)
     assert response.status_code == 400
-    assert response.json["error_message"] == "Category does not exist"
+    assert response.json["error_message"] == "Category does not exist."
 
 
 def validate_items(
@@ -136,7 +136,7 @@ def test_get_items_only_non_exist_category_id_query_fail(
     headers = get_login_auth_header(client)
     response = client.get("/items?category_id=999", headers=headers)
     assert response.status_code == 400
-    assert response.json["error_message"] == "Category does not exist"
+    assert response.json["error_message"] == "Category does not exist."
 
 
 def test_get_items_full_queries_success(users, items, categories, client):
@@ -173,7 +173,7 @@ def test_get_item_by_id_not_exist_fail(users, items, categories, client):
     headers = get_login_auth_header(client)
     response = client.get("/items/999", headers=headers)
     assert response.status_code == 404
-    assert response.json["error_message"] == "Item not found"
+    assert response.json["error_message"] == "Item not found."
 
 
 def test_unauthorized_get_items_success(items, client):
@@ -208,7 +208,7 @@ def test_unauthorized_get_item_by_id_fail(items, client):
     headers = get_regis_auth_header(client)
     response = client.get("/items/999", headers=headers)
     assert response.status_code == 404
-    assert response.json["error_message"] == "Item not found"
+    assert response.json["error_message"] == "Item not found."
 
 
 def test_authorized_update_item_success(items, client, categories):
@@ -261,7 +261,7 @@ def test_update_not_exist_item_fail(items, client, categories):
         headers=headers,
     )
     assert response.status_code == 404
-    assert response.json["error_message"] == "Item not found"
+    assert response.json["error_message"] == "Item not found."
 
 
 def test_unauthorized_update_item_fail(items, client):
@@ -291,11 +291,11 @@ def test_authorized_delete_item_success(items, client):
     assert db.session.query(ItemModel).count() == original_total_items - 60
 
 
-def test_delete_not_exist_ictem_fail(items, client):
+def test_delete_not_exist_item_fail(items, client):
     headers = get_login_auth_header(client)
     response = client.delete("/items/99999", headers=headers)
     assert response.status_code == 404
-    assert response.json["error_message"] == "Item not found"
+    assert response.json["error_message"] == "Item not found."
 
 
 def test_unauthorized_delete_item_fail(items, client):

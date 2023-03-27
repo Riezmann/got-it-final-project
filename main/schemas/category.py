@@ -8,9 +8,9 @@ class RequestCategorySchema(BaseSchema):
         required=True,
         validate=[
             validate.Length(
-                max=100, error="Category name must not " "exceed 100 characters"
+                max=100, error="Category name must not " "exceed 100 characters."
             ),
-            validate.Length(min=1, error="Category name must not be empty"),
+            validate.Length(min=1, error="Category name must not be empty."),
         ],
     )
 

@@ -7,7 +7,7 @@ class CategoryModel(BaseModel):
     __tablename__ = "category"
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), unique=True, nullable=False)
+    name = db.Column(db.String(100), unique=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     items = db.relationship(
         "ItemModel", back_populates="category", cascade="all, delete", lazy="dynamic"

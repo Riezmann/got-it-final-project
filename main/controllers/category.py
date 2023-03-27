@@ -21,7 +21,7 @@ class CategoriesOperations(MethodView):
     @request_data(RequestCategorySchema)
     def post(self, user_id, category_data):
         if check_exist(CategoryModel, name=category_data["name"]):
-            raise BadRequest(error_message="Category already exists")
+            raise BadRequest(error_message="Category already exists.")
         category = CategoryModel(name=category_data["name"])
         category.user_id = user_id
         category.save_to_db()
@@ -53,7 +53,7 @@ class CategoryOperations(MethodView):
     def delete(self, user_id, category_id):
         category = db.session.get(CategoryModel, category_id)
         if not category:
-            raise NotFound(error_message="Category not found")
+            raise NotFound(error_message="Category not found.")
         if user_id != category.user_id:
             raise Forbidden()
         category.delete_from_db()

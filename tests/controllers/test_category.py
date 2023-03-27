@@ -33,7 +33,7 @@ def test_create_duplicated_category_fail(client, users, categories):
     headers = get_login_auth_header(client)
     response = client.post("/categories", json=normal_category, headers=headers)
     assert response.status_code == 400
-    assert response.json["error_message"] == "Category already exists"
+    assert response.json["error_message"] == "Category already exists."
 
 
 def test_get_category_no_queries_success(client, users, categories):

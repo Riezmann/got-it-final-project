@@ -20,7 +20,7 @@ class ItemsOperations(MethodView):
     def post(self, user_id, item_data):
         check_exist(CategoryModel, error_out=True, id=item_data["category_id"])
         if check_exist(ItemModel, name=item_data["name"]):
-            raise BadRequest(error_message="Item already exists")
+            raise BadRequest(error_message="Item already exists.")
         item = ItemModel(
             name=item_data["name"],
             description=item_data["description"],
@@ -62,7 +62,7 @@ class ItemOperations(MethodView):
     def get(self, user_id, item_id):
         item = db.session.get(ItemModel, item_id)
         if not item:
-            raise NotFound(error_message="Item not found")
+            raise NotFound(error_message="Item not found.")
         item.is_owner = item.user_id == user_id
         return ResponseItemSchema().dump(item)
 
@@ -80,7 +80,7 @@ class ItemOperations(MethodView):
             item.category_id = item_data["category_id"]
             item.user_id = user_id
         else:
-            raise NotFound(error_message="Item not found")
+            raise NotFound(error_message="Item not found.")
         db.session.commit()
         item.is_owner = True
         return ResponseItemSchema().dump(item)
@@ -89,7 +89,7 @@ class ItemOperations(MethodView):
     def delete(self, user_id, item_id):
         item = db.session.get(ItemModel, item_id)
         if not item:
-            raise NotFound(error_message="Item not found")
+            raise NotFound(error_message="Item not found.")
         if user_id != item.user_id:
             raise Forbidden()
         db.session.delete(item)

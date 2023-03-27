@@ -15,6 +15,17 @@ from ..models.user import UserModel
 blp = Blueprint("Users", __name__, url_prefix="/")
 
 
+def get_access_token(user):
+    return create_access_token(
+        identity=user.id,
+        fresh=True,
+        expires_delta=timedelta(
+            minutes=app.config["JWT_EXPIRATION_MINUTES"],
+            seconds=app.config["JWT_EXPIRATION_SECONDS"],
+        ),
+    )
+
+
 class UserRegister(MethodView):
     @request_data(UserSchema)
     def post(self, user_data):
@@ -25,14 +36,7 @@ class UserRegister(MethodView):
             hashed_password=sha256.hash(user_data["password"]),
         )
         user.save_to_db()
-        access_token = create_access_token(
-            identity=user.id,
-            fresh=True,
-            expires_delta=timedelta(
-                minutes=app.config["JWT_EXPIRATION_MINUTES"],
-                seconds=app.config["JWT_EXPIRATION_SECONDS"],
-            ),
-        )
+        access_token = get_access_token(user)
         return jsonify({"access_token": access_token}), 200
 
 
@@ -41,14 +45,7 @@ class UserLogin(MethodView):
     def post(self, user_data):
         user = db.session.query(UserModel).filter_by(email=user_data["email"]).first()
         if user and sha256.verify(user_data["password"], user.hashed_password):
-            access_token = create_access_token(
-                identity=user.id,
-                fresh=True,
-                expires_delta=timedelta(
-                    minutes=app.config["JWT_EXPIRATION_MINUTES"],
-                    seconds=app.config["JWT_EXPIRATION_SECONDS"],
-                ),
-            )
+            access_token = get_access_token(user)
             return {"access_token": access_token}, 200
         else:
             return Unauthorized().to_response()

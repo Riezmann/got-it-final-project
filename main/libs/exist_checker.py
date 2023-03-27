@@ -8,6 +8,6 @@ def check_exist(model, error_out=False, **kwargs):
         return obj
     if error_out:
         raise BadRequest(
-            error_message=f"{model.__tablename__.capitalize()} does not exist"
+            error_message=f"{model.__tablename__.capitalize()} does not exist."
         )
     return False

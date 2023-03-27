@@ -8,7 +8,7 @@ class RequestItemSchema(BaseSchema):
         required=True,
         validate=[
             validate.Length(
-                min=1, max=100, error="Category name must not " "exceed 100 characters"
+                min=1, max=100, error="Category name must not " "exceed 100 characters."
             )
         ],
     )
@@ -16,8 +16,9 @@ class RequestItemSchema(BaseSchema):
         required=True,
         validate=[
             validate.Length(
-                min=1, max=300, error="Category name must not" "exceed 300 characters"
-            )
+                max=100, error="Category name must not" "exceed 100 characters."
+            ),
+            validate.Length(min=1, error="Category name must not be empty."),
         ],
     )
     category_id = fields.Integer(required=True, strict=True)

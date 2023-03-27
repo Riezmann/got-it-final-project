@@ -10,7 +10,7 @@ class UserSchema(BaseSchema):
         validate=[
             validate.Email(),
             validate.Length(
-                min=6, max=255, error="Email must be between 6 and 255 characters long"
+                min=6, max=255, error="Email must be between 6 and 255 characters long."
             ),
         ],
     )
@@ -25,7 +25,7 @@ class UserSchema(BaseSchema):
             validate.Regexp(
                 regex=r"^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]",
                 error="Password must contain at least 1 letter, 1 number, "
-                "and 1 special characters",
+                "and 1 special characters.",
             ),
         ],
         load_only=True,
