@@ -82,7 +82,7 @@ class ItemOperations(MethodView):
             check_exist(CategoryModel, error_out=True, id=item_data.get("category_id"))
         if item_data.get("name") and item.name != item_data.get("name"):
             if check_exist(ItemModel, name=item_data.get("name")):
-                raise BadRequest(error_message="Item already exists")
+                raise BadRequest(error_message="Item already exists.")
         item.name = item_data.get("name") or item.name
         item.description = item_data.get("description") or item.description
         item.category_id = item_data.get("category_id") or item.category_id

@@ -20,7 +20,6 @@ def get_access_token(user):
         identity=user.id,
         fresh=True,
         expires_delta=timedelta(
-            minutes=app.config["JWT_EXPIRATION_MINUTES"],
             seconds=app.config["JWT_EXPIRATION_SECONDS"],
         ),
     )

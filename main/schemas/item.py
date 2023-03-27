@@ -1,6 +1,6 @@
 from marshmallow import RAISE, fields, post_load, pre_load
 
-from ..commons.exceptions import MethodNotAllowed
+from ..commons.exceptions import BadRequest
 from . import validate_length
 from .base import BaseSchema, PaginationSchema
 
@@ -41,7 +41,7 @@ class UpdateItemSchema(BaseSchema):
     @pre_load
     def check_empty_request(self, data, **_):
         if not data:
-            raise MethodNotAllowed(error_message="Empty update request is not allowed")
+            raise BadRequest(error_message="Empty update request is not allowed")
         return data
 
     @post_load
